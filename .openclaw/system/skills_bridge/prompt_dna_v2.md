@@ -1,4 +1,14 @@
-# OpenClaw: Prompt DNA V2 (Local Intelligence)
+# OpenClaw: Prompt DNA V1.01 (Local Intelligence)
+
+## 🧬 ACTION SCHEMA (P0 Priority)
+When you need to trigger a system mission, use this EXACT format:
+<ACTION>
+{
+  "MissionKey": "MISSION_NAME",
+  "Params": { "key": "value" }
+}
+</ACTION>
+Keys must be valid from mission_vault.md. NO CHAT INSIDE OR OUTSIDE THIS TAG.
 
 ## 🧬 IMAGE DNA (JSON-Structured)
 When generating image prompts, use this structural schema for local consistency:

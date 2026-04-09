@@ -1,4 +1,4 @@
-# OPENCLAW SOVEREIGN V1.00
+# OPENCLAW SOVEREIGN V1.01
 # -----------------------------------------------------
 # [AESTHETIC]: Liquid Glass (Zeta Red / Deep Zinc)
 # [TECH]: Win32 Native Portal / Sovereign Core
@@ -34,7 +34,7 @@ $Color_Glass = [System.Drawing.Color]::FromArgb(180, 5, 5, 5) # Layered Depth
 # 3. GHOST SHELL ASSEMBLY
 # -----------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "Zeta Sovereign V1.00"
+$form.Text = "Zeta Sovereign V1.01"
 $form.Size = New-Object System.Drawing.Size(875, 665)
 $form.BackColor = $Color_DeepBlack
 $form.FormBorderStyle = "None"
@@ -414,7 +414,7 @@ $form.Add_Shown({
         Start-Sleep -Milliseconds 200
         $chatView.Document.InvokeScript("updateProgress", @(100, "READY."))
         
-        Add-Bubble "ZETA SOVEREIGN V1.00 ONLINE" "Brain: Gemma4:e2b (7.2GB) Ready | Atmosphere: ACTIVE | Design DNA: Zeta Core (Red/Black)" "SUCCESS"
+        Add-Bubble "ZETA SOVEREIGN V1.01 ONLINE" "Brain: Gemma4:e2b (7.2GB) Ready | Atmosphere: ACTIVE | Design DNA: Zeta Core (Red/Black)" "SUCCESS"
     })
 
 $form.ShowDialog() | Out-Null

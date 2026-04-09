@@ -1,6 +1,6 @@
-# OPENCLAW ENGINE V1.00 [SOVEREIGN_CORE]
+# OPENCLAW ENGINE V1.01 [SOVEREIGN_CORE]
 # -----------------------------------
-# [IDENTITY]: OPENCLAW_ENGINE_V1.00
+# [IDENTITY]: OPENCLAW_ENGINE_V1.01
 # [MANDATE]: Persistent GPU Execution / Zero Cloud Token Usage
 
 $WkDir = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -149,23 +149,27 @@ function Invoke-OClawQuery([string]$UserMessage, [int]$Tier = 1) {
     $RawRes = $Response.response
     $CleanRes = $RawRes -replace '(?s)<THOUGHTS>.*?</THOUGHTS>', '' -replace '(?s)<PLAN>.*?</PLAN>', ''
     
-    # Autonomous Action Dispatcher
-    if ($CleanRes -match '(?s)<ACTION>(.*?)</ACTION>') {
-        $jsonStr = $matches[1]
+    # 4.2 ACTION DISPATCHER (Greedy JSON Purifier V1.01)
+    if ($RawRes -match "(?s)<ACTION>(.*?)<\/ACTION>") {
+        $ActionPayload = $Matches[1].Trim()
         try {
-            $actionObj = $jsonStr | ConvertFrom-Json
-            if ($actionObj.MissionKey) {
-                $actionRes = Invoke-OClawMission $actionObj.MissionKey $actionObj.Params
-                $CleanRes += "`n`n### [$([char]0x1F518)] SYSTEM DISPATCH:`n$actionRes"
+            # GREEDY PURIFIER: Extract text between the first '{' and last '}' to ignore garbage
+            if ($ActionPayload -match "(?s)(\{.*\})") {
+                $CleanJson = $Matches[1]
+                $actionObj = $CleanJson | ConvertFrom-Json
+                if ($actionObj.MissionKey) {
+                    $actionRes = Invoke-OClawMission $actionObj.MissionKey $actionObj.Params
+                    $CleanRes += "`n`n### [$([char]0x1F518)] SYSTEM DISPATCH:`n$actionRes"
+                }
             }
         } catch {
-            $CleanRes += "`n`n### [X] SYSTEM DISPATCH ERROR:`nFailed to parse action JSON."
+            $CleanRes += "`n`n### [!] SYSTEM DISPATCH ERROR:`nMalformed Action Payload. Engine recovered."
+            Write-OClawLog "DISPATCH_ERROR" "Payload: $ActionPayload"
         }
-        $CleanRes = $CleanRes -replace '(?s)<ACTION>.*?</ACTION>', ''
     }
     
-    # Persistent Logging (V1.00 Sovereign Baseline)
-    $LogEntry = @{ timestamp = (Get-Date -Format "o"); version = "V1.00"; user = $UserMessage; assistant = $CleanRes.Trim() } | ConvertTo-Json -Compress
+    # Persistent Logging (V1.01 Sovereign Baseline)
+    $LogEntry = @{ timestamp = (Get-Date -Format "o"); version = "V1.01"; user = $UserMessage; assistant = $CleanRes.Trim() } | ConvertTo-Json -Compress
     Add-Content -Path (Join-Path $LocalKnowledge "skills_bridge\chat_log.jsonl") -Value $LogEntry
     
     $FormattedResponse = Format-OClawCard $CleanRes.Trim()
