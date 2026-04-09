@@ -1,6 +1,6 @@
-# OPENCLAW ENGINE V1.05 [SOVEREIGN_CORE]
+# OPENCLAW ENGINE V1.06 [SOVEREIGN_CORE]
 # -----------------------------------
-# [IDENTITY]: OPENCLAW_ENGINE_V1.05
+# [IDENTITY]: OPENCLAW_ENGINE_V1.06
 # [MANDATE]: Persistent GPU Execution / Zero Cloud Token Usage
 
 $WkDir = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -81,7 +81,7 @@ function Get-OClawContext {
     To execute other actions, use JSON block inside <ACTION> tag.
 "@
 
-    $RawContext = "IDENTITY: OpenClaw V1.05 (Sovereign).`n`nUSER_LEXICON:`n$UserLexicon`n`nCHAT_HISTORY:`n$History`n`nTACTICAL_CORE:`n$LocalCore`n`nDYNAMIC_SKILLS:`n$DeepSkills`n`nMISSION_PROTOCOLS:`n$MissionVault`n`nPROMPT_DNA:`n$PromptDNA`n`n$SovereignDirective"
+    $RawContext = "IDENTITY: OpenClaw V1.06 (Sovereign).`n`nUSER_LEXICON:`n$UserLexicon`n`nCHAT_HISTORY:`n$History`n`nTACTICAL_CORE:`n$LocalCore`n`nDYNAMIC_SKILLS:`n$DeepSkills`n`nMISSION_PROTOCOLS:`n$MissionVault`n`nPROMPT_DNA:`n$PromptDNA`n`n$SovereignDirective"
     $Sanitized = $RawContext -replace '[^\x20-\x7E\n\r]', '' 
     return $Sanitized
 }

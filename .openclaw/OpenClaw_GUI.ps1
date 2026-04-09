@@ -23,7 +23,7 @@ $SystemRoot = Join-Path $PSScriptRoot "system"
 $AssetPath = Join-Path $SystemRoot "assets\crab_icon.png"
 
 # -----------------------------------------------------
-# 2. DESIGN TOKENS# OPENCLAW SOVEREIGN V1.05
+# 2. DESIGN TOKENS# OPENCLAW SOVEREIGN V1.06
 # -----------------------------------------------------
 # [AESTHETIC]: Liquid Glass (Zeta Red / Deep Zinc)
 $Color_ZetaRed = [System.Drawing.ColorTranslator]::FromHtml("#FF0000")
@@ -404,7 +404,7 @@ $inputBox.Add_KeyDown({
 $sendBtn.Add_Click($SendAction)
 
 $form.Add_Shown({
-        # OPENCLAW SOVEREIGN V1.05
+        # OPENCLAW SOVEREIGN V1.06
         $chatView.Document.InvokeScript("updateProgress", @(10, "Mounting Memory Layer..."))
         Start-Sleep -Milliseconds 200
         $chatView.Document.InvokeScript("updateProgress", @(25, "Knowledge is reading..."))
@@ -421,7 +421,7 @@ $form.Add_Shown({
         Start-Sleep -Milliseconds 200
         $chatView.Document.InvokeScript("updateProgress", @(100, "READY."))
         
-        Add-Bubble "ZETA SOVEREIGN V1.05 ONLINE" "Brain: Gemma4:e2b (7.2GB) Ready | Atmosphere: ACTIVE | Design DNA: Zeta Core (Red/Black)" "SUCCESS"
+        Add-Bubble "ZETA SOVEREIGN V1.06 ONLINE" "Brain: Gemma4:e2b (7.2GB) Ready | Atmosphere: ACTIVE | Design DNA: Zeta Core (Red/Black)" "SUCCESS"
     })
 
 $form.ShowDialog() | Out-Null
