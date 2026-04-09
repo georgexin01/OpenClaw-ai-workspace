@@ -84,11 +84,11 @@ function Format-OClawCard([string]$RawText) {
     $CleanText = $RawText -replace "\(Gemma-2B:Fast\) ", ""
     
     # Emoji Intelligence Injection (Zeta Red Palette)
-    # Using Unicode escapes for better file encoding compatibility
-    $Result = $CleanText -replace "### SUCCESS", "### [$([char]0xD83D)$([char]0xDFE5)] SUCCESS" `
-                         -replace "### BLOCKER", "### [$([char]0x26D4)] BLOCKER" `
-                         -replace "### INSIGHT", "### [$([char]0x1F518)] INSIGHT" `
-                         -replace "### MISSION", "### [$([char]0x1F534)] MISSION"
+    # Using Unified Unicode conversion to prevent 32-bit surrogate pair crashes
+    $Result = $CleanText -replace "### SUCCESS", "### [$([System.Char]::ConvertFromUtf32(0x1F7E5))] SUCCESS" `
+                          -replace "### BLOCKER", "### [$([System.Char]::ConvertFromUtf32(0x26D4))] BLOCKER" `
+                          -replace "### INSIGHT", "### [$([System.Char]::ConvertFromUtf32(0x1F518))] INSIGHT" `
+                          -replace "### MISSION", "### [$([System.Char]::ConvertFromUtf32(0x1F534))] MISSION"
                          
     return $Result
 }
