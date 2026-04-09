@@ -108,11 +108,12 @@ function Add-ActionGlyph($x, $icon, $color, $tooltipText) {
     return $btn
 }
 
-$btnMission = Add-ActionGlyph 20 0xE7E7 $Color_ZetaRed "EXECUTE MISSION STRATEGY"
-$btnSync = Add-ActionGlyph 60 0xE895 $Color_ZetaRed "SYNC KNOWLEDGE VAULT"
-$btnDelete = Add-ActionGlyph 100 0xE74D $Color_ZetaRed "CLEAR CHAT HISTORY"
-$btnMin = Add-ActionGlyph 140 0xE921 $Color_ZetaRed "MINIMIZE"
-$btnClose = Add-ActionGlyph 180 0xE8BB $Color_ZetaRed "CLOSE SOVEREIGN PORTAL"
+$btnMission = Add-ActionGlyph 10 0xE7E7 $Color_ZetaRed "EXECUTE MISSION STRATEGY"
+$btnBrain =   Add-ActionGlyph 45 0xE8A9 $Color_ZetaRed "AUDIT SOVEREIGN BRAIN"
+$btnSync =    Add-ActionGlyph 80 0xE895 $Color_ZetaRed "SYNC KNOWLEDGE VAULT"
+$btnDelete =  Add-ActionGlyph 115 0xE74D $Color_ZetaRed "CLEAR CHAT HISTORY"
+$btnMin =     Add-ActionGlyph 150 0xE921 $Color_ZetaRed "MINIMIZE"
+$btnClose =   Add-ActionGlyph 185 0xE8BB $Color_ZetaRed "CLOSE SOVEREIGN PORTAL"
 
 $btnMin.Add_Click({ $form.WindowState = "Minimized" })
 $btnClose.Add_Click({ $form.Close() })
@@ -304,6 +305,17 @@ $btnSync.Add_Click({
         Start-Process "powershell" "-ExecutionPolicy Bypass -Command { . '$EnginePath'; Invoke-OClawSkill 'Sovereign_GitSync' }"
     })
 
+$btnBrain.Add_Click({
+        Add-Bubble "NEURAL AUDIT" "Interrogating local brain for architectural metadata..." "SYSTEM"
+        $psJob = [powershell]::Create()
+        [void]$psJob.AddScript({ param($p); . $p; Invoke-OClawModelInfo }).AddArgument($EnginePath)
+        $asyncRes = $psJob.BeginInvoke()
+        while (-not $asyncRes.IsCompleted) { [System.Windows.Forms.Application]::DoEvents(); Start-Sleep -Milliseconds 100 }
+        $res = $psJob.EndInvoke($asyncRes) -join "`n"
+        $psJob.Dispose()
+        Add-Bubble "BRAIN_INFO" $res "INSIGHT"
+    })
+
 $btnMission.Add_Click({
         Add-Bubble "MISSION TRIGGER" "Tactical Wave initiated." "MISSION"
         Start-Process "powershell" "-ExecutionPolicy Bypass -Command { . '$EnginePath'; Invoke-OClawMission 'RESOLVE_FAUCET' }"
@@ -370,7 +382,7 @@ $form.Add_Shown({
         Start-Sleep -Milliseconds 200
         $chatView.Document.InvokeScript("updateProgress", @(100, "READY."))
         
-        Add-Bubble "ZETA SOVEREIGN V45.0 ONLINE" "Atmosphere: ACTIVE | Cinematic Layers: STABLE | Design DNA: Zeta Core (Red/Black)" "SUCCESS"
+        Add-Bubble "ZETA SOVEREIGN V45.0 ONLINE" "Brain: Gemma4:e2b (7.2GB) Ready | Atmosphere: ACTIVE | Design DNA: Zeta Core (Red/Black)" "SUCCESS"
     })
 
 $form.ShowDialog() | Out-Null

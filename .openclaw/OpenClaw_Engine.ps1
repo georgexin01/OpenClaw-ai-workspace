@@ -199,6 +199,30 @@ function Invoke-OClawFileWrite([string]$Path, [string]$Content) {
     return "### SUCCESS: [FILE_WRITE] '$Path' updated with new logic."
 }
 
+function Invoke-OClawModelInfo {
+    $Model = Get-OClawIdentity 2
+    $Raw = ollama show $Model
+    
+    $Lines = $Raw -split "`n"
+    $Info = @{}
+    foreach ($line in $Lines) {
+        if ($line -match "architecture\s+(.*)") { $Info.Arch = $matches[1].Trim() }
+        if ($line -match "parameters\s+(.*)") { $Info.Size = $matches[1].Trim() }
+        if ($line -match "quantization\s+(.*)") { $Info.Quant = $matches[1].Trim() }
+        if ($line -match "context length\s+(.*)") { $Info.Ctx = $matches[1].Trim() }
+    }
+    
+    $Card = @"
+### [🔘] NEURAL_DIAGNOSTIC: $Model
+- **Arch**: $($Info.Arch)
+- **Parameters**: $($Info.Size)
+- **Quantization**: $($Info.Quant)
+- **Context Window**: $($Info.Ctx) tokens
+- **Hardware**: NVIDIA RTX 2070 (8GB VRAM)
+"@
+    return $Card
+}
+
 function Invoke-OClawWebSearch([string]$Query) {
     Write-Host "[OPENCLAW] [WEB] Initiating SearXNG search for: $Query" -ForegroundColor Cyan
     $Uri = "http://localhost:8888/search?q=$($Query -replace ' ', '+')&format=json"
