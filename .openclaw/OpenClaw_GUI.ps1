@@ -23,8 +23,9 @@ $SystemRoot = Join-Path $PSScriptRoot "system"
 $AssetPath = Join-Path $SystemRoot "assets\crab_icon.png"
 
 # -----------------------------------------------------
-# 2. DESIGN TOKENS (ZETA SOVEREIGN V45.0)
+# 2. DESIGN TOKENS# OPENCLAW SOVEREIGN V1.04
 # -----------------------------------------------------
+# [AESTHETIC]: Liquid Glass (Zeta Red / Deep Zinc)
 $Color_ZetaRed = [System.Drawing.ColorTranslator]::FromHtml("#FF0000")
 $Color_Zinc = [System.Drawing.ColorTranslator]::FromHtml("#27272A")
 $Color_Surface = [System.Drawing.ColorTranslator]::FromHtml("#0A0A0B")
@@ -349,7 +350,7 @@ $SendAction = {
     if (-not [string]::IsNullOrWhiteSpace($msg)) {
         $inputBox.Clear()
         Add-Bubble "USER" $msg "USER"
-        Add-Bubble "COGNITIVE SYNC" "<span class='spinner'>⚙️</span> Delegating to local brain... Analyzing context." "SOVEREIGN" "thinking_bubble"
+        Add-Bubble "COGNITIVE SYNC" "<span class='spinner'>⚙️</span> AI is thinking... Analyzing context." "SOVEREIGN" "thinking_bubble"
         
         # Async Background Execution (Non-Blocking)
         & powershell -ExecutionPolicy Bypass -Command { . '$EnginePath'; Write-OClawLog "MESSAGE_DISPATCH" "User: $msg" }
@@ -403,20 +404,24 @@ $inputBox.Add_KeyDown({
 $sendBtn.Add_Click($SendAction)
 
 $form.Add_Shown({
-        # OPENCLAW SOVEREIGN V1.03
+        # OPENCLAW SOVEREIGN V1.04
         $chatView.Document.InvokeScript("updateProgress", @(10, "Mounting Memory Layer..."))
-        Start-Sleep -Milliseconds 100
-        $chatView.Document.InvokeScript("updateProgress", @(30, "Syncing GPU Identity..."))
+        Start-Sleep -Milliseconds 200
+        $chatView.Document.InvokeScript("updateProgress", @(25, "Knowledge is reading..."))
+        Start-Sleep -Milliseconds 200
+        $chatView.Document.InvokeScript("updateProgress", @(45, "Skills is reading..."))
+        Start-Sleep -Milliseconds 200
+        $chatView.Document.InvokeScript("updateProgress", @(65, "Gemma4 is connected..."))
         
         $script:currentGpu = & powershell -ExecutionPolicy Bypass -File (Join-Path $SystemRoot "OpenClaw_Skills\Get_GPU_Status.ps1")
         
-        $chatView.Document.InvokeScript("updateProgress", @(60, "Establishing Brain Handshake..."))
-        $chatView.Document.InvokeScript("updateProgress", @(90, "Neuro-Logic Online."))
+        $chatView.Document.InvokeScript("updateProgress", @(80, "Establishing Brain Handshake..."))
+        $chatView.Document.InvokeScript("updateProgress", @(95, "Neuro-Logic Online."))
         
         Start-Sleep -Milliseconds 200
         $chatView.Document.InvokeScript("updateProgress", @(100, "READY."))
         
-        Add-Bubble "ZETA SOVEREIGN V1.03 ONLINE" "Brain: Gemma4:e2b (7.2GB) Ready | Atmosphere: ACTIVE | Design DNA: Zeta Core (Red/Black)" "SUCCESS"
+        Add-Bubble "ZETA SOVEREIGN V1.04 ONLINE" "Brain: Gemma4:e2b (7.2GB) Ready | Atmosphere: ACTIVE | Design DNA: Zeta Core (Red/Black)" "SUCCESS"
     })
 
 $form.ShowDialog() | Out-Null
