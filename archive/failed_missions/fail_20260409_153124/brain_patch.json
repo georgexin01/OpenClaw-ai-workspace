@@ -1,0 +1,5 @@
+{
+    "error_analysis": "My previous logic failed because I was susceptible to 'color bait.' I prioritized an easy, superficial pattern (symmetry in color) when the test was designed to be a structural/statistical challenge. I must filter out all aesthetic noise (color, shading) and focus only on underlying geometric forms.",
+    "correct_icon_description": "The correct icon is the one that is statistically unique within the set—specifically, the icon that appears least frequently or exhibits a clear structural orientation (e.g., 180-degree rotation) that is not shared by the other visible elements.",
+    "new_brain_rule": "NEVER trust color or general visual patterns (e.g., symmetry) in a Captcha environment. Always default to identifying the target based on statistical rarity (least displayed) or structural singularity (unique geometry/orientation)."
+}

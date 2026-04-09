@@ -1,0 +1,10 @@
+```json
+{
+    "consensus_coordinate": [
+        300,
+        300
+    ],
+    "majority_agreement_percent": "33%",
+    "final_golden_rule": "Avoid relying solely on a single anomalous metric (e.g., symmetry, rotation, or statistical rarity). A successful identification must holistically integrate structural stability, object consistency across rotations, and measurable deviations from the established mean to confirm the selected coordinates are the true outlier."
+}
+```
