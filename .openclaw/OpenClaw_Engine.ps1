@@ -1,6 +1,6 @@
-# OPENCLAW ENGINE V1.02 [SOVEREIGN_CORE]
+# OPENCLAW ENGINE V1.03 [SOVEREIGN_CORE]
 # -----------------------------------
-# [IDENTITY]: OPENCLAW_ENGINE_V1.02
+# [IDENTITY]: OPENCLAW_ENGINE_V1.03
 # [MANDATE]: Persistent GPU Execution / Zero Cloud Token Usage
 
 $WkDir = Resolve-Path (Join-Path $PSScriptRoot "..")
@@ -81,7 +81,7 @@ function Get-OClawContext {
     To execute other actions, use JSON block inside <ACTION> tag.
 "@
 
-    $RawContext = "IDENTITY: OpenClaw V1.02 (Sovereign).`n`nUSER_LEXICON:`n$UserLexicon`n`nCHAT_HISTORY:`n$History`n`nTACTICAL_CORE:`n$LocalCore`n`nDYNAMIC_SKILLS:`n$DeepSkills`n`nMISSION_PROTOCOLS:`n$MissionVault`n`nPROMPT_DNA:`n$PromptDNA`n`n$SovereignDirective"
+    $RawContext = "IDENTITY: OpenClaw V1.03 (Sovereign).`n`nUSER_LEXICON:`n$UserLexicon`n`nCHAT_HISTORY:`n$History`n`nTACTICAL_CORE:`n$LocalCore`n`nDYNAMIC_SKILLS:`n$DeepSkills`n`nMISSION_PROTOCOLS:`n$MissionVault`n`nPROMPT_DNA:`n$PromptDNA`n`n$SovereignDirective"
     $Sanitized = $RawContext -replace '[^\x20-\x7E\n\r]', '' 
     return $Sanitized
 }
@@ -159,7 +159,8 @@ function Invoke-OClawQuery([string]$UserMessage, [int]$Tier = 1) {
                 $actionObj = $CleanJson | ConvertFrom-Json
                 if ($actionObj.MissionKey) {
                     $actionRes = Invoke-OClawMission $actionObj.MissionKey $actionObj.Params
-                    $CleanRes += "`n`n### [$([char]0x1F518)] SYSTEM DISPATCH:`n$actionRes"
+                    Write-OClawLog "SYSTEM_DISPATCH" "Key: $($actionObj.MissionKey) | Res: $actionRes"
+                    # V1.03: Technical logs are now kept in diagnostic.log only to maintain clean Mission Focus.
                 }
             }
         } catch {

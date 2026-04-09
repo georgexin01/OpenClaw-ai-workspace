@@ -35,7 +35,7 @@ $Color_Glass = [System.Drawing.Color]::FromArgb(180, 5, 5, 5) # Layered Depth
 # 3. GHOST SHELL ASSEMBLY
 # -----------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "Zeta Sovereign V1.02"
+$form.Text = "Zeta Sovereign V1.03"
 $form.Size = New-Object System.Drawing.Size(875, 665)
 $form.BackColor = $Color_DeepBlack
 $form.FormBorderStyle = "None"
@@ -171,7 +171,7 @@ $chatView.Location = New-Object System.Drawing.Point(35, 77)
 $chatView.Size = New-Object System.Drawing.Size(805, 476)
 $chatView.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Bottom -bor [System.Windows.Forms.AnchorStyles]::Left -bor [System.Windows.Forms.AnchorStyles]::Right
 $chatView.DocumentText = @"
-<html><head><style>
+<html><head><meta http-equiv="X-UA-Compatible" content="IE=edge"><style>
   @keyframes fadeUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
   @keyframes spin { 100% { transform: rotate(360deg); } }
   @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
@@ -247,7 +247,8 @@ $chatView.DocumentText = @"
 
   function toggleBubble(id) {
     var el = document.getElementById(id);
-    if (el) { el.classList.toggle('collapsed'); }
+    if (el && el.classList) { el.classList.toggle('collapsed'); }
+    else if (el) { el.className = (el.className.indexOf('collapsed') > -1) ? el.className.replace(' collapsed', '') : el.className + ' collapsed'; }
   }
 </script>
 </head>
@@ -402,7 +403,7 @@ $inputBox.Add_KeyDown({
 $sendBtn.Add_Click($SendAction)
 
 $form.Add_Shown({
-        # OPENCLAW SOVEREIGN V1.02
+        # OPENCLAW SOVEREIGN V1.03
         $chatView.Document.InvokeScript("updateProgress", @(10, "Mounting Memory Layer..."))
         Start-Sleep -Milliseconds 100
         $chatView.Document.InvokeScript("updateProgress", @(30, "Syncing GPU Identity..."))
@@ -415,7 +416,7 @@ $form.Add_Shown({
         Start-Sleep -Milliseconds 200
         $chatView.Document.InvokeScript("updateProgress", @(100, "READY."))
         
-        Add-Bubble "ZETA SOVEREIGN V1.02 ONLINE" "Brain: Gemma4:e2b (7.2GB) Ready | Atmosphere: ACTIVE | Design DNA: Zeta Core (Red/Black)" "SUCCESS"
+        Add-Bubble "ZETA SOVEREIGN V1.03 ONLINE" "Brain: Gemma4:e2b (7.2GB) Ready | Atmosphere: ACTIVE | Design DNA: Zeta Core (Red/Black)" "SUCCESS"
     })
 
 $form.ShowDialog() | Out-Null

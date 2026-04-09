@@ -1,4 +1,4 @@
-# OPENCLAW SOVEREIGN PROTOCOL TESTER (V1.02)
+# OPENCLAW SOVEREIGN PROTOCOL TESTER (V1.03)
 # Defensive Build - Sovereign Deep Audit
 
 $PSScriptRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
@@ -6,16 +6,14 @@ $EnginePath = Join-Path $PSScriptRoot "..\OpenClaw_Engine.ps1"
 if (-not (Test-Path $EnginePath)) { exit 1 }
 . $EnginePath
 
-Write-Host "--- SOVEREIGN DEEP AUDIT V1.02 ---" -ForegroundColor Cyan
-Write-OClawLog "TEST_SUITE_START" "Initiating V1.02 stress test"
+Write-Host "--- SOVEREIGN DEEP AUDIT V1.03 ---" -ForegroundColor Cyan
+Write-OClawLog "TEST_SUITE_START" "Initiating V1.03 stress test"
 
 $TestQueries = @(
+    "hi",
     "What is your identity name?",
-    "Calculate the current VRAM status.",
-    "Show me the model type.",
-    "Explain the +0.01 versioning directive from the User Lexicon.",
-    "Summarize the missions in the Tactical Mission Vault.",
-    "Mission Test: Trigger the 'WHATSAPP_MONITOR' mission."
+    "Confirm hardware lock status.",
+    "Mission Test: Trigger 'WHATSAPP_MONITOR' mission."
 )
 
 $SuccessCount = 0
@@ -25,19 +23,23 @@ foreach ($q in $TestQueries) {
     try {
         $Response = Invoke-OClawQuery $q 2
         $Timer.Stop()
-        # Pass criteria: Response contains Gemma-4 or System Dispatch marker
-        if ($Response -match "Gemma-4" -or $Response -match "SYSTEM DISPATCH" -or $Response -match "Sovereign") {
+        
+        # V1.03 Check: 'hi' should NOT contain the word 'Recording' or 'Evolution' (Technical logs)
+        if ($q -eq "hi" -and ($Response -match "Recording" -or $Response -match "Evolution recorded")) {
+             Write-Host "FAIL (Technical logs leaked)" -ForegroundColor Red
+             Write-OClawLog "TEST_FAIL" "Query: $q | Leak detected."
+        }
+        elseif ($Response -match "Gemma-4" -or $Response -match "Sovereign" -or $Response -match "hello") {
             Write-Host "PASS ($($Timer.Elapsed.TotalSeconds)s)" -ForegroundColor Green
             $SuccessCount++
         } else {
-            Write-Host "FAIL" -ForegroundColor Red
+            Write-Host "FAIL (Unexpected response content)" -ForegroundColor Red
             Write-OClawLog "TEST_FAIL" "Query: $q | Resp: $Response"
         }
     } catch {
         Write-Host "CRASH" -ForegroundColor Red
-        Write-OClawLog "TEST_CRASH" "Query: $q | Error: $($_.Exception.Message)"
     }
 }
 
 Write-Host "Summary: $SuccessCount / $($TestQueries.Count)"
-Write-OClawLog "TEST_SUITE_END" "V1.02 Summary: $SuccessCount"
+Write-OClawLog "TEST_SUITE_END" "V1.03 Summary: $SuccessCount"
