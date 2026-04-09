@@ -14,7 +14,7 @@ function Get-OClawIdentity([int]$Tier = 1) {
     
     if ($Tier -eq 1) { return "gemma:2b" } 
     if ($IsXIN) { return "my-gpu-gemma" } 
-    return "gemma4:e2b"
+    return "gemma4:e4b"
 }
 
 $ActiveSkills = @() 
@@ -59,8 +59,8 @@ function Get-OClawContext {
     
     [AUTONOMOUS CAPABILITIES]:
     Tactical Actions: [READ_FILE, WRITE_FILE, WEB_SEARCH, UPDATE_LEXICON, RESOLVE_FAUCET].
-    To execute an action, you MUST output a JSON block inside an <ACTION> tag. For example:
-    <ACTION>{"MissionKey":"WRITE_FILE", "Params":{"Path":"C:/test.md", "Content":"data"}}</ACTION>
+    To execute a WEB_SEARCH, use: <ACTION>{"MissionKey":"WEB_SEARCH", "Params":{"Query":"search terms"}}</ACTION>
+    To execute other actions, use JSON block inside <ACTION> tag.
 "@
 
     $RawContext = "IDENTITY: OpenClaw (Sovereign).`n`nUSER_LEXICON:`n$UserLexicon`n`nCHAT_HISTORY:`n$History`n`nTACTICAL_CORE:`n$LocalCore`n`nDYNAMIC_SKILLS:`n$DeepSkills`n`nMISSION_PROTOCOLS:`n$MissionVault`n`nPROMPT_DNA:`n$PromptDNA`n`n$SovereignDirective"
@@ -166,15 +166,26 @@ function Invoke-OClawFileWrite([string]$Path, [string]$Content) {
     return "### SUCCESS: [FILE_WRITE] '$Path' updated with new logic."
 }
 
-function Invoke-OClawWebSearch([string]$Url) {
-    $Response = Invoke-RestMethod -Uri $Url -Method Get -ErrorAction SilentlyContinue -ErrorVariable err
-    if ($err) {
-        return "### BLOCKER: [WEB_RESEARCH] Could not access $Url."
+function Invoke-OClawWebSearch([string]$Query) {
+    Write-Host "[OPENCLAW] [WEB] Initiating SearXNG search for: $Query" -ForegroundColor Cyan
+    $Uri = "http://localhost:8888/search?q=$($Query -replace ' ', '+')&format=json"
+    
+    try {
+        $Response = Invoke-RestMethod -Uri $Uri -Method Get -TimeoutSec 10
+        if ($Response.results.Count -eq 0) {
+            return "### BLOCKER: [WEB_RESEARCH] No results found for '$Query'."
+        }
+        
+        $Results = $Response.results | Select-Object -First 3
+        $Summary = ""
+        foreach ($res in $Results) {
+            $Summary += "Source: $($res.url)`nTitle: $($res.title)`nSnippet: $($res.content)`n`n"
+        }
+        
+        return "### SUCCESS: [WEB_RESEARCH] Data retrieved from SearXNG:`n$Summary"
+    } catch {
+        return "### BLOCKER: [WEB_RESEARCH] SearXNG instance not responding at http://localhost:8888. Please run Start_SearXNG skill."
     }
-    $Text = $Response -replace '<[^>]+>', ''
-    $maxLen = [Math]::Min(500, $Text.Length)
-    $preview = $Text.Substring(0, $maxLen)
-    return "### SUCCESS: [WEB_RESEARCH] Skimmed content from $($Url): $preview..."
 }
 
 # 6. SKILL DISPATCHER (Local Execution)
@@ -202,7 +213,7 @@ function Invoke-OClawMission([string]$MissionKey, $Params) {
             return Invoke-OClawFileWrite $Params.Path $Params.Content
         }
         "WEB_SEARCH" {
-            return Invoke-OClawWebSearch $Params.Url
+            return Invoke-OClawWebSearch $Params.Query
         }
         "UPDATE_LEXICON" {
             return Invoke-OClawUpdateLexicon $Params.Knowledge

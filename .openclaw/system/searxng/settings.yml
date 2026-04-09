@@ -1,0 +1,22 @@
+# SearXNG settings
+# -----------------------------------------------------
+use_default_settings: true
+
+server:
+  port: 8080
+  bind_address: "0.0.0.0"
+  secret_key: "openclaw_sovereign_intelligence_alpha_key" # Change this for peak security
+  base_url: false
+
+search:
+  safe_search: 0
+  autocomplete: ""
+  formats:
+    - html
+    - json
+
+enabled_engines:
+  - google
+  - duckduckgo
+  - wikipedia
+  - bing
