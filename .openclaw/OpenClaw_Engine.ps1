@@ -9,12 +9,23 @@ $LocalKnowledge = Join-Path $PSScriptRoot "system"
 
 # 1. HARDWARE IDENTITY LOCK & TIERING
 function Get-OClawIdentity([int]$Tier = 1) {
+    # COG-TUNING: Hardware Awareness (SM-DNA)
+    $script = Join-Path $PSScriptRoot "system/OpenClaw_Skills/Get_GPU_Status.ps1"
+    $raw = & powershell -ExecutionPolicy Bypass -File $script
+    $GpuStatus = if ($raw) { $raw | ConvertFrom-Json } else { $null }
+
     $HardwareID = (Get-CimInstance Win32_BaseBoard).SerialNumber
     $IsXIN = ($HardwareID -eq "07C9611_P51E971105")
     
+    # Adaptive Threshold: If VRAM > 90% or GPU > 95%, force Tier 1 (Fast)
+    if ($GpuStatus -and ($GpuStatus.UsedPercent -gt 90 -or $GpuStatus.Utilization -gt 95)) {
+        Write-Host "[SOVEREIGN] CRITICAL LOAD: GPU at $($GpuStatus.UsedPercent)%. Force-Tiering To Gemma:2B." -ForegroundColor Coral
+        return "gemma:2b"
+    }
+
     if ($Tier -eq 1) { return "gemma:2b" } 
     if ($IsXIN) { return "my-gpu-gemma" } 
-    return "gemma4:e4b"
+    return "gemma4:e2b"
 }
 
 $ActiveSkills = @() 
@@ -112,7 +123,13 @@ function Invoke-OClawQuery([string]$UserMessage, [int]$Tier = 1) {
         return "[ERROR] Handshake failed. Details: $($err[0].Exception.Message)"
     }
     
-    $Badge = if ($Tier -eq 1) { "(Gemma-2B:Fast)" } else { "(Gemma-7B:Heavy)" }
+    # TELEMETRY SYNC: Capture GPU state post-inference
+    $script = Join-Path $PSScriptRoot "system/OpenClaw_Skills/Get_GPU_Status.ps1"
+    $raw = & powershell -ExecutionPolicy Bypass -File $script
+    $GpuRes = if ($raw) { $raw | ConvertFrom-Json } else { $null }
+    $Telemetry = if ($GpuRes) { "[GPU: $($GpuRes.Utilization)% | VRAM: $($GpuRes.UsedPercent)%] " } else { "" }
+
+    $Badge = if ($Model -eq "gemma:2b") { "($($Telemetry)Gemma-2B:Fast)" } else { "($($Telemetry)Gemma-4:Heavy)" }
     
     # Cognitive Filter: Strip internal monologue
     $RawRes = $Response.response
@@ -136,6 +153,13 @@ function Invoke-OClawQuery([string]$UserMessage, [int]$Tier = 1) {
     Add-Content -Path (Join-Path $LocalKnowledge "skills_bridge\chat_log.jsonl") -Value $LogEntry
     
     $FormattedResponse = Format-OClawCard $CleanRes.Trim()
+    
+    # SOVEREIGN SYNC: Auto-Commit changes if mission resulted in file/logic updates
+    if ($CleanRes -match "SUCCESS" -or $CleanRes -match "MISSION") {
+        $Reason = if ($CleanRes -match "\[(.*?)\]") { $matches[1] } else { "Mission Logic Evolution" }
+        Invoke-OClawSkill "Sovereign_GitSync" "-Reason '$Reason'"
+    }
+    
     return "$Badge $FormattedResponse"
 }
 
@@ -148,6 +172,10 @@ function Invoke-OClawUpdateLexicon([string]$NewKnowledge) {
     if ($err) {
         return "### BLOCKER: [SEMANTIC_LINK] Failed to evolve lexicon."
     }
+    
+    # Auto-Sync Lexicon Evolution
+    Invoke-OClawSkill "Sovereign_GitSync" "-Reason 'Lexicon Expansion'"
+    
     return "### SUCCESS: [SEMANTIC_LINK] Lexicon upgraded with new strategy context."
 }
 
@@ -220,7 +248,8 @@ function Invoke-OClawMission([string]$MissionKey, $Params) {
         }
         "RESOLVE_FAUCET" {
             $FaucetPath = Join-Path $WkDir "faucet\scripts\ztv_v3_solver.ps1"
-            & powershell -ExecutionPolicy Bypass -File $FaucetPath
+            $Result = & powershell -ExecutionPolicy Bypass -File $FaucetPath
+            return "### MISSION: [FAUCET_PULSE] Analysis Complete.`n$Result"
         }
         default {
             Invoke-OClawSkill $MissionKey

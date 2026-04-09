@@ -90,29 +90,59 @@ $actionPanel.Location = New-Object System.Drawing.Point(595, 21)
 $actionPanel.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
 $form.Controls.Add($actionPanel)
 
-function Add-ActionGlyph($x, $icon, $color) {
+function Add-ActionGlyph($x, $icon, $color, $tooltipText) {
     $btn = New-Object System.Windows.Forms.Label
     $btn.Text = [char]$icon
-    $btn.Font = New-Object System.Drawing.Font("Segoe MDL2 Assets", 13)
+    $btn.Font = New-Object System.Drawing.Font("Segoe MDL2 Assets", 15) # Increased size
     $btn.Location = New-Object System.Drawing.Point($x, 3)
-    $btn.Size = New-Object System.Drawing.Size(28, 28)
+    $btn.Size = New-Object System.Drawing.Size(32, 28)
     $btn.ForeColor = $color
     $btn.Cursor = "Hand"
     $btn.TextAlign = "MiddleCenter"
+    
+    $tip = New-Object System.Windows.Forms.ToolTip
+    $tip.SetToolTip($btn, $tooltipText)
+    
     $btn.Add_MouseEnter({ $this.ForeColor = [System.Drawing.Color]::White }.GetNewClosure())
     $btn.Add_MouseLeave({ $this.ForeColor = $color }.GetNewClosure())
     $actionPanel.Controls.Add($btn)
     return $btn
 }
 
-$btnMission = Add-ActionGlyph 56 0xE916 $Color_Lavender
-$btnSync = Add-ActionGlyph 91 0xE895 $Color_Cyan
-$btnDelete = Add-ActionGlyph 126 0xE74D $Color_Coral
-$btnMin = Add-ActionGlyph 161 0xE921 $Color_Cyan
-$btnClose = Add-ActionGlyph 196 0xE8BB $Color_Coral
+$btnMission = Add-ActionGlyph 20 0xE7E7 $Color_Cyan "EXECUTE MISSION STRATEGY" # Clearer icon (Play/Mission)
+$btnSync = Add-ActionGlyph 60 0xE895 $Color_Cyan "SYNC KNOWLEDGE VAULT"
+$btnDelete = Add-ActionGlyph 100 0xE74D $Color_Coral "CLEAR CHAT HISTORY"
+$btnMin = Add-ActionGlyph 140 0xE921 $Color_Cyan "MINIMIZE"
+$btnClose = Add-ActionGlyph 180 0xE8BB $Color_Coral "CLOSE SOVEREIGN PORTAL"
 
 $btnMin.Add_Click({ $form.WindowState = "Minimized" })
 $btnClose.Add_Click({ $form.Close() })
+
+# 4.1 GPU HEARTBEAT MONITOR
+$gpuLabel = New-Object System.Windows.Forms.Label
+$gpuLabel.Text = "GPU: --% | VRAM: --MB"
+$gpuLabel.Location = New-Object System.Drawing.Point(340, 24)
+$gpuLabel.Size = New-Object System.Drawing.Size(250, 30)
+$gpuLabel.Font = New-Object System.Drawing.Font("Segoe UI", 8)
+$gpuLabel.ForeColor = [System.Drawing.Color]::Gray
+$gpuLabel.TextAlign = "MiddleRight"
+$gpuLabel.Anchor = [System.Windows.Forms.AnchorStyles]::Top -bor [System.Windows.Forms.AnchorStyles]::Right
+$form.Controls.Add($gpuLabel)
+
+$gpuTimer = New-Object System.Windows.Forms.Timer
+$gpuTimer.Interval = 5000 # 5 seconds
+$gpuTimer.Add_Tick({
+    $script = Join-Path $SystemRoot "OpenClaw_Skills/Get_GPU_Status.ps1"
+    $raw = & powershell -ExecutionPolicy Bypass -File $script
+    if ($raw) {
+        try {
+            $status = $raw | ConvertFrom-Json
+            $gpuLabel.Text = "GPU: $($status.Utilization)% | VRAM: $($status.UsedVRAM)MB ($($status.UsedPercent)%)"
+            $gpuLabel.ForeColor = if ($status.UsedPercent -gt 90) { $Color_Coral } else { [System.Drawing.Color]::Gray }
+        } catch {}
+    }
+})
+$gpuTimer.Start()
 
 # -----------------------------------------------------
 # 5. BRANDING
@@ -143,8 +173,20 @@ $chatView.DocumentText = @"
 <html><head><style>
   @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
   @keyframes spin { 100% { transform: rotate(360deg); } }
+  @keyframes pulse { 0% { opacity: 0.5; } 50% { opacity: 1; } 100% { opacity: 0.5; } }
   .spinner { display: inline-block; animation: spin 2s linear infinite; font-size: 1.2em; margin-right: 8px; vertical-align: middle; }
   body { background-color: #050810; color: white; font-family: 'Segoe UI', sans-serif; padding: 40px; margin: 0; overflow-x: hidden; }
+  
+  #boot-screen {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+    background: #050810; z-index: 9999; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; text-align: center;
+  }
+  .boot-text { font-family: 'Segoe UI Black', sans-serif; letter-spacing: 5px; color: #00E5CC; font-size: 1.5em; margin-bottom: 20px; animation: pulse 1.5s infinite; }
+  .progress-container { width: 300px; height: 4px; background: rgba(0, 229, 204, 0.1); border-radius: 2px; overflow: hidden; }
+  #progress-bar { width: 0%; height: 100%; background: #00E5CC; transition: width 0.3s ease; box-shadow: 0 0 15px #00E5CC; }
+  .boot-log { font-family: 'Consolas', monospace; font-size: 0.7em; color: rgba(255,255,255,0.4); margin-top: 20px; text-transform: uppercase; }
+
   .bubble { 
     max-width: 80%; padding: 25px; margin-bottom: 30px; 
     border-radius: 20px 20px 20px 4px; border: 1px solid rgba(0, 229, 204, 0.2);
@@ -162,8 +204,30 @@ $chatView.DocumentText = @"
   .bubble-title { font-weight: 800; text-transform: uppercase; color: #00E5CC; font-size: 0.8em; margin-bottom:10px; }
   .bubble-user .bubble-title { color: #FF4D4C; }
   .bubble-content { line-height: 1.7; opacity: 0.9; font-size: 1.1em; }
-</style></head>
-<body><div id='container'></div></body></html>
+</style>
+<script>
+  var progress = 0;
+  function updateProgress(val, log) {
+    progress = val;
+    document.getElementById('progress-bar').style.width = progress + '%';
+    if(log) document.getElementById('boot-log').innerText = log;
+    if(progress >= 100) {
+      setTimeout(function() {
+        document.getElementById('boot-screen').style.opacity = '0';
+        setTimeout(function() { document.getElementById('boot-screen').style.display = 'none'; }, 500);
+      }, 500);
+    }
+  }
+</script>
+</head>
+<body>
+<div id='boot-screen'>
+  <div class='boot-text'>OPENCLAW SOVEREIGN</div>
+  <div class='progress-container'><div id='progress-bar'></div></div>
+  <div id='boot-log' class='boot-log'>Initializing Neuro-Cache...</div>
+</div>
+<div id='container'></div>
+</body></html>
 "@
 $form.Controls.Add($chatView)
 
@@ -217,7 +281,8 @@ $btnDelete.Add_Click({
     })
 
 $btnSync.Add_Click({
-        Add-Bubble "SYSTEM SYNC" "Rescanning master vault... Knowledge Singularity updated." "SYSTEM"
+        Add-Bubble "SYSTEM SYNC" "Synchronizing Sovereignty to Repository..." "SYSTEM"
+        Start-Process "powershell" "-ExecutionPolicy Bypass -Command { . '$EnginePath'; Invoke-OClawSkill 'Sovereign_GitSync' }"
     })
 
 $btnMission.Add_Click({
@@ -230,18 +295,32 @@ $SendAction = {
     if (-not [string]::IsNullOrWhiteSpace($msg)) {
         $inputBox.Clear()
         Add-Bubble "USER" $msg "USER"
-        Add-Bubble "THINKING..." "<span class='spinner'>⚙️</span> Cognitive Mirroring active. Planning mission..." "SOVEREIGN" "thinking_bubble"
+        Add-Bubble "COGNITIVE SYNC" "<span class='spinner'>⚙️</span> Delegating to local brain... Analyzing context." "SOVEREIGN" "thinking_bubble"
         
+        # Async Background Execution (Non-Blocking)
         $psJob = [powershell]::Create()
-        [void]$psJob.AddScript({ param($m, $p); . $p; Invoke-OClawQuery $m 1 }).AddArgument($msg).AddArgument($EnginePath)
+        [void]$psJob.AddScript({ 
+            param($m, $p) 
+            try {
+                # Source the engine and invoke query
+                . $p
+                $ans = Invoke-OClawQuery $m 1
+                return $ans
+            } catch {
+                return "### [X] ENGINE_CRASH: $($_.Exception.Message)"
+            }
+        }).AddArgument($msg).AddArgument($EnginePath)
+        
         $asyncRes = $psJob.BeginInvoke()
         
+        # Event Loop while waiting
         while (-not $asyncRes.IsCompleted) { 
             [System.Windows.Forms.Application]::DoEvents()
-            Start-Sleep -Milliseconds 100 
+            Start-Sleep -Milliseconds 200 
         }
+        
         $resObj = $psJob.EndInvoke($asyncRes)
-        $res = if ($resObj) { $resObj -join "`n" } else { "No response or engine failed to load." }
+        $res = if ($resObj) { $resObj -join "`n" } else { "### [!] TIMEOUT: Engine failed to materialize response." }
         $psJob.Dispose()
         
         Remove-Bubble "thinking_bubble"
@@ -259,7 +338,20 @@ $inputBox.Add_KeyDown({
 $sendBtn.Add_Click($SendAction)
 
 $form.Add_Shown({
-        Add-Bubble "SEMANTIC MIRROR V35.1 ONLINE" "Semantic Memory: ACTIVE | YT Auto-Learn: ARMED | Paste any YouTube link to evolve." "SUCCESS"
+        # SOVEREIGN BOOT SEQUENCE (V38.1)
+        $chatView.Document.InvokeScript("updateProgress", @(10, "Mounting Memory Layer..."))
+        Start-Sleep -Milliseconds 100
+        $chatView.Document.InvokeScript("updateProgress", @(30, "Syncing GPU Identity..."))
+        
+        $script:currentGpu = & powershell -ExecutionPolicy Bypass -File (Join-Path $SystemRoot "OpenClaw_Skills\Get_GPU_Status.ps1")
+        
+        $chatView.Document.InvokeScript("updateProgress", @(60, "Establishing Brain Handshake..."))
+        $chatView.Document.InvokeScript("updateProgress", @(90, "Neuro-Logic Online."))
+        
+        Start-Sleep -Milliseconds 200
+        $chatView.Document.InvokeScript("updateProgress", @(100, "READY."))
+        
+        Add-Bubble "SEMANTIC MIRROR V38.1 ONLINE" "Brain: READY | Mission Strategy: ACTIVE | Hardware Lock: STABLE" "SUCCESS"
     })
 
 $form.ShowDialog() | Out-Null
