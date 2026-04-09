@@ -1,5 +1,6 @@
-# OPENCLAW SOVEREIGN V1.01
+# OPENCLAW ENGINE V1.02 [SOVEREIGN_CORE]
 # -----------------------------------------------------
+# [IDENTITY]: OPENCLAW_ENGINE_V1.02
 # [AESTHETIC]: Liquid Glass (Zeta Red / Deep Zinc)
 # [TECH]: Win32 Native Portal / Sovereign Core
 # [STATUS]: Version Reset Active (04-10-2026)
@@ -34,7 +35,7 @@ $Color_Glass = [System.Drawing.Color]::FromArgb(180, 5, 5, 5) # Layered Depth
 # 3. GHOST SHELL ASSEMBLY
 # -----------------------------------------------------
 $form = New-Object System.Windows.Forms.Form
-$form.Text = "Zeta Sovereign V1.01"
+$form.Text = "Zeta Sovereign V1.02"
 $form.Size = New-Object System.Drawing.Size(875, 665)
 $form.BackColor = $Color_DeepBlack
 $form.FormBorderStyle = "None"
@@ -291,7 +292,7 @@ $form.Controls.Add($sendBtn)
 # 8. SOVEREIGN LOGIC
 # -----------------------------------------------------
 function Add-Bubble($title, $content, $type = "AI", $id = $null) {
-    if (!$id) { $id = "b-" + [guid]::NewGuid().ToString().Substring(0,8) } # Unique ID generation
+    if (!$id) { $id = "b-" + [guid]::NewGuid().ToString().Substring(0,8) }
     $class = if ($type -eq "USER") { "bubble bubble-user" } else { "bubble bubble-ai" }
     
     $html = "<div id='$id' class='$class' onclick='toggleBubble(\`$id\`)'><div class='bubble-title'>$title</div><div class='bubble-content'>$content</div></div>"
@@ -414,7 +415,7 @@ $form.Add_Shown({
         Start-Sleep -Milliseconds 200
         $chatView.Document.InvokeScript("updateProgress", @(100, "READY."))
         
-        Add-Bubble "ZETA SOVEREIGN V1.01 ONLINE" "Brain: Gemma4:e2b (7.2GB) Ready | Atmosphere: ACTIVE | Design DNA: Zeta Core (Red/Black)" "SUCCESS"
+        Add-Bubble "ZETA SOVEREIGN V1.02 ONLINE" "Brain: Gemma4:e2b (7.2GB) Ready | Atmosphere: ACTIVE | Design DNA: Zeta Core (Red/Black)" "SUCCESS"
     })
 
 $form.ShowDialog() | Out-Null
