@@ -59,7 +59,8 @@ function Get-OClawContext {
     
     [AUTONOMOUS CAPABILITIES]:
     Tactical Actions: [READ_FILE, WRITE_FILE, WEB_SEARCH, UPDATE_LEXICON, RESOLVE_FAUCET].
-    Format: [ACTION: MISSION_KEY(ParamName='Value')]
+    To execute an action, you MUST output a JSON block inside an <ACTION> tag. For example:
+    <ACTION>{"MissionKey":"WRITE_FILE", "Params":{"Path":"C:/test.md", "Content":"data"}}</ACTION>
 "@
 
     $RawContext = "IDENTITY: OpenClaw (Sovereign).`n`nUSER_LEXICON:`n$UserLexicon`n`nCHAT_HISTORY:`n$History`n`nTACTICAL_CORE:`n$LocalCore`n`nDYNAMIC_SKILLS:`n$DeepSkills`n`nMISSION_PROTOCOLS:`n$MissionVault`n`nPROMPT_DNA:`n$PromptDNA`n`n$SovereignDirective"
@@ -72,15 +73,12 @@ function Format-OClawCard([string]$RawText) {
     $CleanText = $RawText -replace "\(Gemma-2B:Fast\) ", ""
     
     # Emoji Intelligence Injection
-    $Result = $CleanText -replace "### SUCCESS", "### ✅ SUCCESS" `
-                         -replace "### BLOCKER", "### 🛡️ BLOCKER" `
-                         -replace "### INSIGHT", "### 💡 INSIGHT" `
-                         -replace "### MISSION", "### 🚀 MISSION"
+    $Result = $CleanText -replace "### SUCCESS", "### [+] SUCCESS" `
+                         -replace "### BLOCKER", "### [X] BLOCKER" `
+                         -replace "### INSIGHT", "### [*] INSIGHT" `
+                         -replace "### MISSION", "### [>] MISSION"
                          
-    if ($Result -match "### ") {
-        return $Result 
-    }
-    return "> [!IMPORTANT]`r`n> ### 💡 INSIGHT: MISSION ANALYSIS`r`n> $CleanText"
+    return $Result
 }
 
 # 4. BRAIN HANDSHAKE (Ollama API - Tiered Protocol)
@@ -90,7 +88,7 @@ function Invoke-OClawQuery([string]$UserMessage, [int]$Tier = 1) {
     if ($UserMessage -match "(https?://(www\.)?(youtube\.com|youtu\.be)/\S+)") {
         $YtUrl = $Matches[1]
         $SkillPath = Join-Path $LocalKnowledge "OpenClaw_Skills\YT_AutoLearn.ps1"
-        Write-Host "[OPENCLAW] 📺 YouTube URL detected. Initiating Auto-Learning..." -ForegroundColor Cyan
+        Write-Host "[OPENCLAW] [YT] YouTube URL detected. Initiating Auto-Learning..." -ForegroundColor Cyan
         $YtResult = & powershell -ExecutionPolicy Bypass -File $SkillPath -Url $YtUrl -UserNote $UserMessage
         # Continue conversation with the result appended as context
         $UserMessage = "$UserMessage`n`n[YT_AUTOLEARN_RESULT]:`n$YtResult"
@@ -108,37 +106,49 @@ function Invoke-OClawQuery([string]$UserMessage, [int]$Tier = 1) {
         options = @{ num_ctx = 2048; num_gpu = 1 }
     } | ConvertTo-Json -Compress
     
-    try {
-        $Timeout = if ($Tier -eq 1) { 30 } else { 120 }
-        $Response = Invoke-RestMethod -Uri $Uri -Method Post -Body $Body -ContentType "application/json" -TimeoutSec $Timeout
-        $Badge = if ($Tier -eq 1) { "(Gemma-2B:Fast)" } else { "(Gemma-7B:Heavy)" }
-        
-        # Cognitive Filter: Strip internal monologue
-        $RawRes = $Response.response
-        $CleanRes = $RawRes -replace '(?s)<THOUGHTS>.*?</THOUGHTS>', '' -replace '(?s)<PLAN>.*?</PLAN>', ''
-        
-        # Persistent Logging (V35.0)
-        $LogEntry = @{ timestamp = (Get-Date -Format "o"); user = $UserMessage; assistant = $CleanRes.Trim() } | ConvertTo-Json -Compress
-        Add-Content -Path (Join-Path $LocalKnowledge "skills_bridge\chat_log.jsonl") -Value $LogEntry
-        
-        $FormattedResponse = Format-OClawCard $CleanRes.Trim()
-        return "$Badge $FormattedResponse"
-    } catch {
-        return "[ERROR] Handshake failed. Details: $($_.Exception.Message)"
+    $Timeout = if ($Tier -eq 1) { 30 } else { 120 }
+    $Response = Invoke-RestMethod -Uri $Uri -Method Post -Body $Body -ContentType "application/json" -TimeoutSec $Timeout -ErrorAction SilentlyContinue -ErrorVariable err
+    if ($err) {
+        return "[ERROR] Handshake failed. Details: $($err[0].Exception.Message)"
     }
+    
+    $Badge = if ($Tier -eq 1) { "(Gemma-2B:Fast)" } else { "(Gemma-7B:Heavy)" }
+    
+    # Cognitive Filter: Strip internal monologue
+    $RawRes = $Response.response
+    $CleanRes = $RawRes -replace '(?s)<THOUGHTS>.*?</THOUGHTS>', '' -replace '(?s)<PLAN>.*?</PLAN>', ''
+    
+    # Autonomous Action Dispatcher
+    if ($CleanRes -match '(?s)<ACTION>(.*?)</ACTION>') {
+        $jsonStr = $matches[1]
+        try {
+            $actionObj = $jsonStr | ConvertFrom-Json
+            $actionRes = Invoke-OClawMission $actionObj.MissionKey $actionObj.Params
+            $CleanRes += "`n`n### [*] SYSTEM DISPATCH:`n$actionRes"
+        } catch {
+            $CleanRes += "`n`n### [X] SYSTEM DISPATCH ERROR:`nFailed to parse action JSON."
+        }
+        $CleanRes = $CleanRes -replace '(?s)<ACTION>.*?</ACTION>', ''
+    }
+    
+    # Persistent Logging (V35.0)
+    $LogEntry = @{ timestamp = (Get-Date -Format "o"); user = $UserMessage; assistant = $CleanRes.Trim() } | ConvertTo-Json -Compress
+    Add-Content -Path (Join-Path $LocalKnowledge "skills_bridge\chat_log.jsonl") -Value $LogEntry
+    
+    $FormattedResponse = Format-OClawCard $CleanRes.Trim()
+    return "$Badge $FormattedResponse"
 }
 
 # 5. INTELLIGENCE DISPATCHER (Action Tiers)
 function Invoke-OClawUpdateLexicon([string]$NewKnowledge) {
-    try {
-        $LexPath = Join-Path $LocalKnowledge "skills_bridge\user_lexicon.md"
-        $Current = Get-Content $LexPath -Raw
-        $Updated = "$Current`n`n### [MEMORY_UPDATE: $(Get-Date)]`n$NewKnowledge"
-        Set-Content -Path $LexPath -Value $Updated -Force
-        return "### SUCCESS: [SEMANTIC_LINK] Lexicon upgraded with new strategy context."
-    } catch {
+    $LexPath = Join-Path $LocalKnowledge "skills_bridge\user_lexicon.md"
+    $Current = Get-Content $LexPath -Raw
+    $Updated = "$Current`n`n### [MEMORY_UPDATE: $(Get-Date)]`n$NewKnowledge"
+    Set-Content -Path $LexPath -Value $Updated -Force -ErrorAction SilentlyContinue -ErrorVariable err
+    if ($err) {
         return "### BLOCKER: [SEMANTIC_LINK] Failed to evolve lexicon."
     }
+    return "### SUCCESS: [SEMANTIC_LINK] Lexicon upgraded with new strategy context."
 }
 
 function Invoke-OClawFileRead([string]$Path) {
@@ -149,22 +159,22 @@ function Invoke-OClawFileRead([string]$Path) {
 }
 
 function Invoke-OClawFileWrite([string]$Path, [string]$Content) {
-    try {
-        Set-Content -Path $Path -Value $Content -Force
-        return "### SUCCESS: [FILE_WRITE] '$Path' updated with new logic."
-    } catch {
-        return "### BLOCKER: [FILE_WRITE] Failed to update '$Path'. Error: $($_.Exception.Message)"
+    Set-Content -Path $Path -Value $Content -Force -ErrorAction SilentlyContinue -ErrorVariable err
+    if ($err) {
+        return "### BLOCKER: [FILE_WRITE] Failed to update '$Path'. Error: $($err[0].Exception.Message)"
     }
+    return "### SUCCESS: [FILE_WRITE] '$Path' updated with new logic."
 }
 
 function Invoke-OClawWebSearch([string]$Url) {
-    try {
-        $Response = Invoke-RestMethod -Uri $Url -Method Get
-        $Text = $Response -replace '<[^>]+>', ''
-        return "### SUCCESS: [WEB_RESEARCH] Skimmed content from $($Url): $($Text.Substring(0, [Math]::Min(500, $Text.Length)))..."
-    } catch {
+    $Response = Invoke-RestMethod -Uri $Url -Method Get -ErrorAction SilentlyContinue -ErrorVariable err
+    if ($err) {
         return "### BLOCKER: [WEB_RESEARCH] Could not access $Url."
     }
+    $Text = $Response -replace '<[^>]+>', ''
+    $maxLen = [Math]::Min(500, $Text.Length)
+    $preview = $Text.Substring(0, $maxLen)
+    return "### SUCCESS: [WEB_RESEARCH] Skimmed content from $($Url): $preview..."
 }
 
 # 6. SKILL DISPATCHER (Local Execution)
@@ -179,7 +189,7 @@ function Invoke-OClawSkill([string]$SkillName) {
 }
 
 # 7. TACTICAL MISSION DISPATCHER
-function Invoke-OClawMission([string]$MissionKey, [hashtable]$Params) {
+function Invoke-OClawMission([string]$MissionKey, $Params) {
     switch ($MissionKey) {
         "CHECK_WHATSAPP" {
             $PulsePath = Join-Path $WkDir "snipaste\auto_pulse.ps1"
