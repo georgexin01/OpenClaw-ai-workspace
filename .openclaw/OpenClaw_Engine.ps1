@@ -213,12 +213,9 @@ function Invoke-OClawModelInfo {
     }
     
     $Card = @"
-### [🔘] NEURAL_DIAGNOSTIC: $Model
-- **Arch**: $($Info.Arch)
-- **Parameters**: $($Info.Size)
-- **Quantization**: $($Info.Quant)
-- **Context Window**: $($Info.Ctx) tokens
-- **Hardware**: NVIDIA RTX 2070 (8GB VRAM)
+### [🔘] NEURAL_DIAGNOSTIC
+- **Type**: $($Info.Arch) ($($Info.Size))
+- **Status**: ACTIVE
 "@
     return $Card
 }

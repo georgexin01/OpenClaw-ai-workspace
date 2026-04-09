@@ -216,10 +216,15 @@ $chatView.DocumentText = @"
     background: rgba(63, 63, 70, 0.05);
   }
   
-  .bubble-title { font-weight: 900; text-transform: uppercase; color: #FF0000; font-size: 0.75em; margin-bottom:12px; letter-spacing: 2px; }
+  .bubble-title { font-weight: 900; text-transform: uppercase; color: #FF0000; font-size: 0.75em; margin-bottom:12px; letter-spacing: 2px; cursor: pointer; }
   .bubble-user .bubble-title { color: #A1A1AA; }
-  .bubble-content { line-height: 1.8; opacity: 0.9; font-size: 1.05em; font-weight: 400; }
+  .bubble-content { line-height: 1.8; opacity: 0.9; font-size: 1.05em; font-weight: 400; transition: opacity 0.3s; }
   
+  /* Collapsible State (V50.0) */
+  .bubble.collapsed { padding-bottom: 12px; margin-bottom: 15px; border-style: dashed; }
+  .bubble.collapsed .bubble-content { display: none; opacity: 0; }
+  .bubble.collapsed::after { content: ' +'; color: rgba(255,0,0,0.5); font-weight: bold; position: absolute; right: 20px; top: 22px; }
+
   /* Tailwind-style Utility Hooks */
   .text-zeta { color: #FF0000; }
   .bg-zeta { background: #FF0000; }
@@ -237,6 +242,11 @@ $chatView.DocumentText = @"
         setTimeout(function() { document.getElementById('boot-screen').style.display = 'none'; }, 500);
       }, 500);
     }
+  }
+
+  function toggleBubble(id) {
+    var el = document.getElementById(id);
+    if (el) { el.classList.toggle('collapsed'); }
   }
 </script>
 </head>
@@ -281,11 +291,18 @@ $form.Controls.Add($sendBtn)
 # 8. SOVEREIGN LOGIC
 # -----------------------------------------------------
 function Add-Bubble($title, $content, $type = "AI", $id = $null) {
+    if (!$id) { $id = "b-" + [guid]::NewGuid().ToString().Substring(0,8) } # Unique ID generation
     $class = if ($type -eq "USER") { "bubble bubble-user" } else { "bubble bubble-ai" }
-    $idStr = if ($id) { " id='$id'" } else { "" }
-    $html = "<div$idStr class='$class'><div class='bubble-title'>$title</div><div class='bubble-content'>$content</div></div>"
+    
+    $html = "<div id='$id' class='$class' onclick='toggleBubble(\`$id\`)'><div class='bubble-title'>$title</div><div class='bubble-content'>$content</div></div>"
     $safe = $html.Replace("'", "\'").Replace("`r`n", "<br/>").Replace("`n", "<br/>")
     $script = "var div = document.createElement('div'); div.innerHTML = '$safe'; document.getElementById('container').appendChild(div); window.scrollTo(0,document.body.scrollHeight);"
+    
+    # Auto-Collapse logic for AI cards after 2s
+    if ($type -ne "USER" -and $type -ne "SUCCESS") {
+        $script += "setTimeout(function() { toggleBubble('$id'); }, 2000);"
+    }
+    
     $chatView.Document.InvokeScript("eval", @($script))
 }
 
