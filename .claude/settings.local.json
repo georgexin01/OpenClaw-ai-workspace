@@ -1,0 +1,28 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(powershell -ExecutionPolicy Bypass -Command \". '.openclaw/OpenClaw_Engine.ps1'; Invoke-OClawQuery 'What is 2+2? Reply with just the number.' 1\")",
+      "Bash(curl -s http://localhost:11434/api/generate -d \"{\\\\\"model\\\\\":\\\\\"gemma4:e2b\\\\\",\\\\\"prompt\\\\\":\\\\\"[IDENTITY]: OpenClaw V1.31.\\\\\\\\nUSER: What is 2+2? Reply with just the number.\\\\\\\\nASSISTANT \\(OpenClaw\\):\\\\\",\\\\\"stream\\\\\":false,\\\\\"options\\\\\":{\\\\\"stop\\\\\":[\\\\\"USER:\\\\\",\\\\\"ASSISTANT:\\\\\"]}}\")",
+      "Bash(python3 -c \"import sys,json; print\\(json.load\\(sys.stdin\\)['response']\\)\")",
+      "Bash(curl -s http://localhost:11434/api/generate -d \"{\\\\\"model\\\\\":\\\\\"gemma4:e2b\\\\\",\\\\\"prompt\\\\\":\\\\\"What is 2+2? Reply with just the number.\\\\\",\\\\\"stream\\\\\":false}\")",
+      "Bash(curl -s http://localhost:11434/api/generate -d '{\"model\":\"gemma4:e2b\",\"prompt\":\"[IDENTITY]: OpenClaw V2.0 Sovereign Intelligence.\\\\n[RULES]:\\\\n- Answer directly. No filler words.\\\\n- Be concise, accurate, and helpful.\\\\n\\\\nUSER: What is the capital of France? Answer in one word.\\\\nASSISTANT \\(OpenClaw\\):\",\"stream\":false,\"options\":{\"stop\":[\"USER:\",\"ASSISTANT:\"]}}')",
+      "Bash(curl -s http://localhost:11434/api/generate -d '{\"model\":\"gemma4:e2b\",\"prompt\":\"Tell me about yourself in 2 sentences. You are OpenClaw V2.0 Sovereign Intelligence.\",\"stream\":false}')",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(d.get\\('response','NO RESPONSE'\\)[:300]\\)\")",
+      "Bash(curl -s http://localhost:11434/api/generate -d '{\"model\":\"gemma4:e2b\",\"prompt\":\"Tell me about yourself in 2 sentences. You are OpenClaw V2.0.\",\"stream\":false}')",
+      "Bash(curl -s http://localhost:11434/api/tags)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f' PASS - {len\\(d[\\\\\"models\\\\\"]\\)} models: {[m[\\\\\"name\\\\\"] for m in d[\\\\\"models\\\\\"]]}'\\)\")",
+      "Bash(curl -s http://localhost:11434/api/generate -d '{\"model\":\"gemma4:e2b\",\"prompt\":\"What is 3+7? Reply only the number.\",\"stream\":false}')",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f' PASS - Response: {d[\\\\\"response\\\\\"].strip\\(\\)}'\\)\")",
+      "Bash(ls \"c:/Users/user/Desktop/workspace/.openclaw/system/OpenClaw_Skills/\"*.ps1)",
+      "Bash(curl -s http://localhost:11434/api/generate -d '{\"model\":\"gemma4:e2b\",\"prompt\":\"[IDENTITY]: OpenClaw V3.0 Sovereign Intelligence.\\\\n[RULES]: Answer directly.\\\\n\\\\nUSER: What version are you and what can you do? 2 sentences max.\\\\nASSISTANT \\(OpenClaw\\):\",\"stream\":false,\"options\":{\"stop\":[\"USER:\"]}}')",
+      "WebFetch(domain:github.com)",
+      "WebSearch",
+      "WebFetch(domain:docs.openwebui.com)",
+      "Bash(gh api:*)",
+      "Bash(python3 -c \"import sys,json; [print\\(f['name']\\) for f in json.load\\(sys.stdin\\)]\")",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(ls -1 \"c:/Users/user/Desktop/workspace/.openclaw/system/OpenClaw_Skills/\"*.ps1)",
+      "Bash(curl -s http://localhost:11434/api/generate -d '{\"model\":\"gemma4:e2b\",\"prompt\":\"What version are you? Reply: I am OpenClaw V3.1\",\"stream\":false}')"
+    ]
+  }
+}

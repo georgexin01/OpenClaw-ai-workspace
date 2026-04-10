@@ -1,313 +1,276 @@
 # ==============================================================================
-# OPENCLAW SOVEREIGN ENGINE - [VERSION V1.09] - [SINGULARITY_BASELINE]
+# OPENCLAW SOVEREIGN ENGINE - [VERSION V3.1] - [PRECISION_CORE]
 # ==============================================================================
-# [IDENTITY]: OPENCLAW_ENGINE_V1.08
-# [MANDATE]: Persistent GPU Execution / Zero Cloud Token Usage
+# [IDENTITY]: OPENCLAW_ENGINE_V3.1
+# [MANDATE]: Concise / Conversation-Aware / Browser + File + Daemon Capable
+# ------------------------------------------------------------------------------
 
-$WkDir = Resolve-Path (Join-Path $PSScriptRoot "..")
-$SharedKnowledge = Join-Path $env:USERPROFILE ".gemini\antigravity\knowledge"
-$LocalKnowledge = Join-Path $PSScriptRoot "system"
-$LogFile = Join-Path $LocalKnowledge "diagnostic.log"
+$script:OClawRoot = $PSScriptRoot
+$script:WkDir = Resolve-Path (Join-Path $PSScriptRoot "..")
+$script:LocalKnowledge = Join-Path $PSScriptRoot "system"
+$script:LogFile = Join-Path $script:LocalKnowledge "diagnostic.log"
+$script:ChatHistoryFile = Join-Path $PSScriptRoot "system\skills_bridge\chat_log.jsonl"
+$script:OllamaUrl = "http://localhost:11434"
 
-function Write-OClawLog([string]$Event, [string]$Details = "") {
-    $Timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
-    $Entry = "[$Timestamp] [$Event] $Details"
-    Add-Content -Path $LogFile -Value $Entry -ErrorAction SilentlyContinue
+# --- LOGGING ---
+function Write-OClawLog([string]$LogEvent, [string]$Details = "") {
+    $ts = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    Add-Content -Path $script:LogFile -Value "[$ts] [$LogEvent] $Details" -ErrorAction SilentlyContinue
 }
 
-# 1. HARDWARE IDENTITY LOCK & TIERING
-function Get-OClawIdentity([int]$Tier = 1) {
-    # COG-TUNING: Hardware Awareness (SM-DNA)
-    $script = Join-Path $PSScriptRoot "system/OpenClaw_Skills/Get_GPU_Status.ps1"
-    $raw = & powershell -ExecutionPolicy Bypass -File $script
-    $GpuStatus = if ($raw) { $raw | ConvertFrom-Json } else { $null }
-
-    $HardwareID = (Get-CimInstance Win32_BaseBoard).SerialNumber
-    $IsXIN = ($HardwareID -eq "07C9611_P51E971105")
-    
-    # Adaptive Threshold: If VRAM > 90% or GPU > 95%, force Tier 1 (Fast)
-    if ($GpuStatus -and ($GpuStatus.UsedPercent -gt 90 -or $GpuStatus.Utilization -gt 95)) {
-        Write-Host "[SOVEREIGN] CRITICAL LOAD: GPU at $($GpuStatus.UsedPercent)%. Force-Tiering To Gemma:2B." -ForegroundColor Coral
-        return "gemma:2b"
-    }
-
-    if ($Tier -eq 1) { return "gemma:2b" } 
-    if ($IsXIN) { return "my-gpu-gemma" } 
-    return "gemma4:e2b"
+# --- 1. MODEL DETECTION & TIERING ---
+function Get-OClawModels {
+    try {
+        $tags = Invoke-RestMethod -Uri "$script:OllamaUrl/api/tags" -TimeoutSec 3
+        return $tags.models | ForEach-Object { $_.name }
+    } catch { return @() }
 }
 
-$ActiveSkills = @() 
+function Get-OClawIdentity([int]$Tier = 0) {
+    $Available = Get-OClawModels
+    $Fast = if ($Available -contains "gemma4:e2b") { "gemma4:e2b" } elseif ($Available.Count -gt 0) { $Available[0] } else { "gemma4:e2b" }
+    $Heavy = if ($Available -contains "gemma4:e4b") { "gemma4:e4b" } else { $Fast }
 
-# 2. CONTEXT AGGREGATOR (Sovereign Intelligence Logic)
-function Sync-OClawSkill([string]$TargetName) {
-    $SearchDir = Join-Path $env:USERPROFILE ".gemini\antigravity"
-    $Found = Get-ChildItem -Path $SearchDir -Recurse -Filter "*$TargetName*" | Where-Object { $_.Extension -eq ".md" } | Select-Object -First 1
-    
-    if ($Found) {
-        $Content = Get-Content $Found.FullName -Raw
-        $global:ActiveSkills += "--- SYNCED SKILL: $($Found.Name) ---`n$Content"
-        return "### SUCCESS: [SKILL_SYNC] $TargetName absorbed into active memory."
+    switch ($Tier) {
+        0 {
+            $RAM = [math]::Round((Get-CimInstance Win32_OperatingSystem).TotalVisibleMemorySize / 1MB, 0)
+            return if ($RAM -ge 16) { $Heavy } else { $Fast }
+        }
+        1 { return $Fast }
+        2 { return $Heavy }
+        default { return $Fast }
     }
-    return "### BLOCKER: [SKILL_SYNC] Target '$TargetName' not found in master vault."
+}
+
+function Test-OClawConnection {
+    try { Invoke-RestMethod -Uri "$script:OllamaUrl/api/tags" -TimeoutSec 2 | Out-Null; return $true } catch { return $false }
+}
+
+# --- 2. PRIVACY & CONTEXT ---
+function Protect-OClawPrivacy([string]$Payload) {
+    return $Payload -replace 'c:\\Users\\[^\\]+\\Desktop', 'C:\WORKSPACE' -replace '[a-fA-F0-9]{32,}', '[REDACTED]'
 }
 
 function Get-OClawContext {
-    $LocalCore = Get-ChildItem (Join-Path $LocalKnowledge "core_rules") -Filter *.md | ForEach-Object { Get-Content $_.FullName -Raw } | Out-String
-    $MissionVault = Get-Content (Join-Path $LocalKnowledge "skills_bridge\mission_vault.md") -Raw
-    $PromptDNA = Get-Content (Join-Path $LocalKnowledge "skills_bridge\prompt_dna_v2.md") -Raw
-    $UserLexicon = Get-Content (Join-Path $LocalKnowledge "skills_bridge\user_lexicon.md") -Raw
-    
-    # Load last 5 history lines
-    $LogPath = Join-Path $LocalKnowledge "skills_bridge\chat_log.jsonl"
-    $History = if (Test-Path $LogPath) { (Get-Content $LogPath -Tail 5) -join "`n" } else { "" }
-    
-    $DeepSkills = $global:ActiveSkills -join "`n`n"
-    
-    $SovereignDirective = @"
-    [SOVEREIGN MAP ACTIVE]:
-    You are the 'ZETA SOVEREIGN CORE'. Absolute compliance with 'sovereign_wisdom_v30.md' is mandatory.
-    
-    [SEMANTIC ANCESTRY]:
-    You must adapt your vocabulary and mission strategy based on the USER_LEXICON and CHAT_HISTORY provided. 
-    Learn jargon, shortcuts, and preferred logical flows.
-    
-    [COGNITIVE SOLVING FLOW]:
-    1. <THOUGHTS>: Audit context + Local Rules.
-    2. <PLAN>: Outline tactical missions.
-    3. <RESPONSE>: Final high-fidelity response [CARD].
-    
-    [AUTONOMOUS CAPABILITIES]:
-    Tactical Actions: [READ_FILE, WRITE_FILE, WEB_SEARCH, UPDATE_LEXICON, RESOLVE_FAUCET].
-    To execute a WEB_SEARCH, use: <ACTION>{"MissionKey":"WEB_SEARCH", "Params":{"Query":"search terms"}}</ACTION>
-    To execute other actions, use JSON block inside <ACTION> tag.
+    $LexPath = Join-Path $script:LocalKnowledge "skills_bridge\user_lexicon.md"
+    $Lexicon = if (Test-Path $LexPath) { Get-Content $LexPath -Raw -ErrorAction SilentlyContinue } else { "" }
+
+    $Directive = @"
+[IDENTITY]: OpenClaw V3.1 Sovereign Intelligence.
+[RULES]:
+- Answer directly. No filler words ("Sure", "I understand", "Of course").
+- Be concise, accurate, and helpful.
+- For code: provide working code only, no explanations unless asked.
+- For questions: give the direct answer first, then brief context if needed.
+[CAPABILITIES]: Local GPU inference, browser control (Chrome CDP), file crawling, web search, visual analysis, OCR, code sandbox, window management, git sync, architecture review, 24/7 daemon mode, prompt chains, RAG search.
 "@
 
-    $RawContext = "IDENTITY: OpenClaw V1.08 (Sovereign).`n`nUSER_LEXICON:`n$UserLexicon`n`nCHAT_HISTORY:`n$History`n`nTACTICAL_CORE:`n$LocalCore`n`nDYNAMIC_SKILLS:`n$DeepSkills`n`nMISSION_PROTOCOLS:`n$MissionVault`n`nPROMPT_DNA:`n$PromptDNA`n`n$SovereignDirective"
-    $Sanitized = $RawContext -replace '[^\x20-\x7E\n\r]', '' 
-    return $Sanitized
+    if ($Lexicon.Length -gt 500) { $Lexicon = $Lexicon.Substring(0, 500) }
+    return "$Directive`n`nCONTEXT:`n$Lexicon"
 }
 
-# 3. THE CARD SHIELD (Formatting Guarantee)
-function Format-OClawCard([string]$RawText) {
-    $CleanText = $RawText -replace "\(Gemma-2B:Fast\) ", ""
-    
-    # Emoji Intelligence Injection (Zeta Red Palette)
-    # Using Unified Unicode conversion to prevent 32-bit surrogate pair crashes
-    $Result = $CleanText -replace "### SUCCESS", "### [$([System.Char]::ConvertFromUtf32(0x1F7E5))] SUCCESS" `
-                          -replace "### BLOCKER", "### [$([System.Char]::ConvertFromUtf32(0x26D4))] BLOCKER" `
-                          -replace "### INSIGHT", "### [$([System.Char]::ConvertFromUtf32(0x1F518))] INSIGHT" `
-                          -replace "### MISSION", "### [$([System.Char]::ConvertFromUtf32(0x1F534))] MISSION"
-                         
-    return $Result
-}
-
-# 4. BRAIN HANDSHAKE (Ollama API - Tiered Protocol)
-function Invoke-OClawQuery([string]$UserMessage, [int]$Tier = 1) {
-
-    Write-OClawLog "INFERENCE_START" "User: $UserMessage | Tier: $Tier"
-    
-    # YT AUTO-LEARNING INTERCEPT (Rule YT-LEARN-01 | P0 Mandate)
-    if ($UserMessage -match "(https?://(www\.)?(youtube\.com|youtu\.be)/\S+)") {
-        $YtUrl = $Matches[1]
-        $SkillPath = Join-Path $LocalKnowledge "OpenClaw_Skills\YT_AutoLearn.ps1"
-        Write-Host "[OPENCLAW] [YT] YouTube URL detected. Initiating Auto-Learning..." -ForegroundColor Cyan
-        $YtResult = & powershell -ExecutionPolicy Bypass -File $SkillPath -Url $YtUrl -UserNote $UserMessage
-        # Continue conversation with the result appended as context
-        $UserMessage = "$UserMessage`n`n[YT_AUTOLEARN_RESULT]:`n$YtResult"
+# --- 3. CONVERSATION HISTORY ---
+function Get-OClawHistory([int]$MaxTurns = 5) {
+    if (-not (Test-Path $script:ChatHistoryFile)) { return "" }
+    $Lines = Get-Content $script:ChatHistoryFile -Tail ($MaxTurns * 2) -ErrorAction SilentlyContinue
+    $History = ""
+    foreach ($line in $Lines) {
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        try {
+            $obj = $line | ConvertFrom-Json -ErrorAction Stop
+            if ($obj.user) { $History += "USER: $($obj.user)`n" }
+            if ($obj.assistant) { $History += "ASSISTANT: $($obj.assistant)`n" }
+        } catch {}
     }
+    return $History
+}
 
+function Save-OClawTurn([string]$UserMsg, [string]$AssistantMsg) {
+    $dir = Split-Path $script:ChatHistoryFile -Parent
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+    $entry = @{ user = $UserMsg; assistant = $AssistantMsg; timestamp = (Get-Date -Format "o") } | ConvertTo-Json -Compress
+    Add-Content -Path $script:ChatHistoryFile -Value $entry -ErrorAction SilentlyContinue
+}
+
+# --- 4. PRECISION INFERENCE ---
+function Invoke-OClawQuery([string]$UserMessage, [int]$Tier = 0) {
     $Model = Get-OClawIdentity $Tier
     $Context = Get-OClawContext
-    $Prompt = "$Context`n`nUSER: $UserMessage`n`nASSISTANT (OpenClaw):"
-    
-    $Uri = "http://localhost:11434/api/generate"
+    $History = Get-OClawHistory 5
+
+    $FullPrompt = "$Context`n`n"
+    if ($History) { $FullPrompt += "RECENT CONVERSATION:`n$History`n" }
+    $FullPrompt += "USER: $UserMessage`nASSISTANT (OpenClaw):"
+
+    $Prompt = Protect-OClawPrivacy $FullPrompt
+
     $Body = @{
         model = $Model
         prompt = $Prompt
         stream = $false
-        options = @{ num_ctx = 2048; num_gpu = 1 }
+        options = @{
+            stop = @("USER:", "ASSISTANT:", "<THOUGHTS>")
+            num_ctx = 4096
+        }
     } | ConvertTo-Json -Compress
-    
-    $Timeout = if ($Tier -eq 1) { 60 } else { 450 } # V1.08: Increased for heavyweight models
-    $Response = Invoke-RestMethod -Uri $Uri -Method Post -Body $Body -ContentType "application/json" -TimeoutSec $Timeout -ErrorAction SilentlyContinue -ErrorVariable err
-    if ($err) {
-        return "[ERROR] Handshake failed. Details: $($err[0].Exception.Message)"
-    }
-    
-    # TELEMETRY SYNC: Capture GPU state post-inference
-    $script = Join-Path $PSScriptRoot "system/OpenClaw_Skills/Get_GPU_Status.ps1"
-    $raw = & powershell -ExecutionPolicy Bypass -File $script
-    $GpuRes = if ($raw) { $raw | ConvertFrom-Json } else { $null }
-    $Telemetry = if ($GpuRes) { "[GPU: $($GpuRes.Utilization)% | VRAM: $($GpuRes.UsedPercent)%] " } else { "" }
 
-    if ($Model -eq "gemma:2b") {
-        $Badge = "($($Telemetry)Gemma-2B:Fast)"
-    } else {
-        $Badge = "($($Telemetry)Gemma-4:Heavy)"
-    }
-    
-    # Cognitive Filter: Strip internal monologue
-    $RawRes = $Response.response
-    $CleanRes = $RawRes -replace '(?s)<THOUGHTS>.*?</THOUGHTS>', '' -replace '(?s)<PLAN>.*?</PLAN>', ''
-    
-    # 4.2 ACTION DISPATCHER (Greedy JSON Purifier V1.01)
-    if ($RawRes -match "(?s)<ACTION>(.*?)<\/ACTION>") {
-        $ActionPayload = $Matches[1].Trim()
-        try {
-            # GREEDY PURIFIER: Extract text between the first '{' and last '}' to ignore garbage
-            if ($ActionPayload -match "(?s)(\{.*\})") {
-                $CleanJson = $Matches[1]
-                $actionObj = $CleanJson | ConvertFrom-Json
-                if ($actionObj.MissionKey) {
-                    $actionRes = Invoke-OClawMission $actionObj.MissionKey $actionObj.Params
-                    Write-OClawLog "SYSTEM_DISPATCH" "Key: $($actionObj.MissionKey) | Res: $actionRes"
-                }
-            }
-        } catch {
-            $CleanRes += "`n`n### [!] SYSTEM DISPATCH ERROR:`nMalformed Action Payload. Engine recovered."
-            Write-OClawLog "DISPATCH_ERROR" "Payload: $ActionPayload"
-        }
-    }
-    
-    # Persistent Logging (V1.08 Sovereign Baseline)
-    $LogEntry = @{ timestamp = (Get-Date -Format "o"); version = "V1.08"; user = $UserMessage; assistant = $CleanRes.Trim() } | ConvertTo-Json -Compress
-    Add-Content -Path (Join-Path $LocalKnowledge "skills_bridge\chat_log.jsonl") -Value $LogEntry
-    
-    $FormattedResponse = Format-OClawCard $CleanRes.Trim()
-    
-    # SOVEREIGN SYNC: Auto-Commit changes if mission resulted in file/logic updates
-    if ($CleanRes -match "SUCCESS" -or $CleanRes -match "MISSION") {
-        $Reason = if ($CleanRes -match "\[(.*?)\]") { $matches[1] } else { "Mission Logic Evolution" }
-        Invoke-OClawSkill "Sovereign_GitSync" "-Reason '$Reason'"
-    }
-    
-    Write-OClawLog "INFERENCE_END" "Model: $Model | Latency: Success"
-    return "$Badge $FormattedResponse"
-}
+    Write-OClawLog "QUERY" "Model=$Model Tier=$Tier Msg=$($UserMessage.Substring(0, [Math]::Min(80, $UserMessage.Length)))"
 
-# 5. INTELLIGENCE DISPATCHER (Action Tiers)
-function Invoke-OClawUpdateLexicon([string]$NewKnowledge) {
-    $LexPath = Join-Path $LocalKnowledge "skills_bridge\user_lexicon.md"
-    $Current = Get-Content $LexPath -Raw
-    $Updated = "$Current`n`n### [MEMORY_UPDATE: $(Get-Date)]`n$NewKnowledge"
-    Set-Content -Path $LexPath -Value $Updated -Force -ErrorAction SilentlyContinue -ErrorVariable err
-    if ($err) {
-        return "### BLOCKER: [SEMANTIC_LINK] Failed to evolve lexicon."
-    }
-    
-    # Auto-Sync Lexicon Evolution
-    Invoke-OClawSkill "Sovereign_GitSync" "-Reason 'Lexicon Expansion'"
-    
-    return "### SUCCESS: [SEMANTIC_LINK] Lexicon upgraded with new strategy context."
-}
-
-function Invoke-OClawFileRead([string]$Path) {
-    if (Test-Path $Path) {
-        return Get-Content $Path -Raw
-    }
-    return "### BLOCKER: [FILE_READ] File '$Path' not found."
-}
-
-function Invoke-OClawFileWrite([string]$Path, [string]$Content) {
-    Set-Content -Path $Path -Value $Content -Force -ErrorAction SilentlyContinue -ErrorVariable err
-    if ($err) {
-        return "### [X] BLOCKER: [FILE_WRITE] Failed to update '$Path'. Error: $($err[0].Exception.Message)"
-    }
-    return "### [+] SUCCESS: [FILE_WRITE] '$Path' updated with new logic."
-}
-
-function Invoke-OClawDirList([string]$Path) {
-    if (-not (Test-Path $Path)) { return "### [X] BLOCKER: [DIR_LIST] Path not found." }
-    $Items = Get-ChildItem -Path $Path | Select-Object Name, Length, LastWriteTime
-    $Res = "### [📂] DIRECTORY_CONTENT: $Path`n"
-    foreach ($i in $Items) {
-        $Res += "- $($i.Name) ($($i.Length) bytes) - $($i.LastWriteTime)`n"
-    }
-    return $Res
-}
-
-function Invoke-OClawModelInfo {
-    $Model = Get-OClawIdentity 2
-    $Raw = ollama show $Model
-    
-    $Lines = $Raw -split "`n"
-    $Info = @{}
-    foreach ($line in $Lines) {
-        if ($line -match "architecture\s+(.*)") { $Info.Arch = $matches[1].Trim() }
-        if ($line -match "parameters\s+(.*)") { $Info.Size = $matches[1].Trim() }
-        if ($line -match "quantization\s+(.*)") { $Info.Quant = $matches[1].Trim() }
-        if ($line -match "context length\s+(.*)") { $Info.Ctx = $matches[1].Trim() }
-    }
-    
-    $Card = @"
-### [🔘] NEURAL_DIAGNOSTIC
-- **Type**: $($Info.Arch) ($($Info.Size))
-- **Status**: ACTIVE
-"@
-    return $Card
-}
-
-function Invoke-OClawWebSearch([string]$Query) {
-    Write-Host "[OPENCLAW] [WEB] Initiating SearXNG search for: $Query" -ForegroundColor Cyan
-    $Uri = "http://localhost:8888/search?q=$($Query -replace ' ', '+')&format=json"
-    
-    try {
-        $Response = Invoke-RestMethod -Uri $Uri -Method Get -TimeoutSec 10
-        if ($Response.results.Count -eq 0) {
-            return "### BLOCKER: [WEB_RESEARCH] No results found for '$Query'."
-        }
-        
-        $Results = $Response.results | Select-Object -First 3
-        $Summary = ""
-        foreach ($res in $Results) {
-            $Summary += "Source: $($res.url)`nTitle: $($res.title)`nSnippet: $($res.content)`n`n"
-        }
-        
-        return "### SUCCESS: [WEB_RESEARCH] Data retrieved from SearXNG:`n$Summary"
+    $Response = try {
+        Invoke-RestMethod -Uri "$script:OllamaUrl/api/generate" -Method Post -Body $Body -ContentType "application/json" -TimeoutSec 180
     } catch {
-        return "### BLOCKER: [WEB_RESEARCH] SearXNG instance not responding at http://localhost:8888. Please run Start_SearXNG skill."
+        Write-OClawLog "INF_FAIL" $_.Exception.Message
+        $null
     }
+
+    if (-not $Response) { return "[ENGINE OFFLINE] Cannot reach Ollama at $script:OllamaUrl. Please ensure Ollama is running." }
+
+    $RawRes = $Response.response
+
+    # Clean system artifacts from response
+    $CleanRes = $RawRes -replace '(?s)<ACTION>.*?</ACTION>', '' `
+                        -replace '(?s)<THOUGHTS>.*?</THOUGHTS>', '' `
+                        -replace '^\s*(OK\.|Sure\.|Certainly\.)\s*', ''
+
+    # Dispatch any embedded actions
+    $ActionMatches = [regex]::Matches($RawRes, "<ACTION>(.*?)<\/ACTION>")
+    foreach ($Match in $ActionMatches) {
+        try {
+            $actionObj = $Match.Groups[1].Value.Trim() | ConvertFrom-Json
+            if ($actionObj.MissionKey) { Invoke-OClawMission $actionObj.MissionKey $actionObj.Params }
+        } catch { Write-OClawLog "DISPATCH_ERROR" $Match.Groups[1].Value }
+    }
+
+    $Result = $CleanRes.Trim()
+
+    # Save conversation turn
+    Save-OClawTurn $UserMessage $Result
+
+    # Log performance
+    if ($Response.eval_count -and $Response.eval_duration) {
+        $tps = [math]::Round($Response.eval_count / ($Response.eval_duration / 1e9), 1)
+        Write-OClawLog "PERF" "Tokens=$($Response.eval_count) Speed=${tps}t/s Model=$Model"
+    }
+
+    return $Result
 }
 
-# 6. SKILL DISPATCHER (Local Execution)
-function Invoke-OClawSkill([string]$SkillName) {
-    $SkillPath = Join-Path "$LocalKnowledge\OpenClaw_Skills" "$SkillName.ps1"
-    if (Test-Path $SkillPath) {
-        Write-Host "[OPENCLAW] Executing Skill: $SkillName" -ForegroundColor Cyan
-        & powershell -ExecutionPolicy Bypass -File $SkillPath
-    } else {
-        Write-Host "[ERROR] Skill '$SkillName' not found." -ForegroundColor Red
-    }
-}
-
-# 7. TACTICAL MISSION DISPATCHER
+# --- 5. TACTICAL MISSION DISPATCHER ---
 function Invoke-OClawMission([string]$MissionKey, $Params) {
+    Write-OClawLog "MISSION" $MissionKey
     switch ($MissionKey) {
-        "CHECK_WHATSAPP" {
-            $PulsePath = Join-Path $WkDir "snipaste\auto_pulse.ps1"
-            & powershell -ExecutionPolicy Bypass -File $PulsePath
-        }
         "READ_FILE" {
-            return Invoke-OClawFileRead $Params.Path
+            if ($Params.Path -and (Test-Path $Params.Path)) { return Get-Content $Params.Path -Raw }
+            return "FILE_NOT_FOUND"
         }
         "WRITE_FILE" {
-            return Invoke-OClawFileWrite $Params.Path $Params.Content
+            if ($Params.Path -and $Params.Content) {
+                $dir = Split-Path $Params.Path -Parent
+                if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir -Force | Out-Null }
+                Set-Content -Path $Params.Path -Value $Params.Content -Force
+                return "SUCCESS"
+            }
+            return "MISSING_PARAMS"
         }
+        "VISUAL_PULSE" { return Invoke-OClawSkill "Visual_Pulse" }
+        "SPEAK" { return Invoke-OClawSkill "Voice_Sovereign" "-Action Speak -Text `"$($Params.Text)`"" }
+        "GIT_SYNC" { return Invoke-OClawSkill "Sovereign_GitSync" }
+        "SECURITY_SCAN" { return Invoke-OClawSkill "Security_Scan" }
+        "ARCHITECT_REVIEW" { return Invoke-OClawSkill "Architect_Review" }
+        "GPU_STATUS" { return Invoke-OClawSkill "Get_GPU_Status" }
+        "MEMORY_GRAPH" { return Invoke-OClawSkill "Memory_Graph" }
         "WEB_SEARCH" {
-            return Invoke-OClawWebSearch $Params.Query
+            if ($Params.Query) {
+                try {
+                    $r = Invoke-RestMethod -Uri "http://localhost:8888/search?q=$([uri]::EscapeDataString($Params.Query))&format=json" -TimeoutSec 10
+                    return ($r.results | Select-Object -First 3 | ForEach-Object { "- $($_.title): $($_.url)`n  $($_.content)" }) -join "`n"
+                } catch { return "SearXNG not available." }
+            }
+            return "NO_QUERY"
         }
-        "UPDATE_LEXICON" {
-            return Invoke-OClawUpdateLexicon $Params.Knowledge
-        }
-        "RESOLVE_FAUCET" {
-            $FaucetPath = Join-Path $WkDir "faucet\scripts\ztv_v3_solver.ps1"
-            $Result = & powershell -ExecutionPolicy Bypass -File $FaucetPath
-            return "### MISSION: [FAUCET_PULSE] Analysis Complete.`n$Result"
-        }
+        "BROWSER_START" { return Invoke-OClawSkill "Browser_Control" "-Action START -Url `"$($Params.Url)`"" }
+        "BROWSER_NAVIGATE" { return Invoke-OClawSkill "Browser_Control" "-Action NAVIGATE -Url `"$($Params.Url)`"" }
+        "BROWSER_SCREENSHOT" { return Invoke-OClawSkill "Browser_Control" "-Action SCREENSHOT" }
+        "BROWSER_CLICK" { return Invoke-OClawSkill "Browser_Control" "-Action CLICK -X $($Params.X) -Y $($Params.Y)" }
+        "BROWSER_TYPE" { return Invoke-OClawSkill "Browser_Control" "-Action TYPE -Text `"$($Params.Text)`"" }
+        "BROWSER_JS" { return Invoke-OClawSkill "Browser_Control" "-Action JS -Code `"$($Params.Code)`"" }
+        "BROWSER_FIND" { return Invoke-OClawSkill "Browser_Control" "-Action FIND -Text `"$($Params.Text)`"" }
+        "BROWSER_VISION" { return Invoke-OClawSkill "Browser_Vision" $(if ($Params.Query) { "-Query `"$($Params.Query)`"" } else { "" }) }
+        "FILE_CRAWL" { return Invoke-OClawSkill "File_Crawler" "-Action CRAWL -Path `"$($Params.Path)`"" }
+        "FILE_SEARCH" { return Invoke-OClawSkill "File_Crawler" "-Action SEARCH -Query `"$($Params.Query)`"" }
+        "FILE_READ" { return Invoke-OClawSkill "File_Crawler" "-Action READ -Path `"$($Params.Path)`"" }
+        "DAEMON_STATUS" { return Invoke-OClawSkill "Daemon_Service" "-Action STATUS" }
+        "DAEMON_INSTALL" { return Invoke-OClawSkill "Daemon_Service" "-Action INSTALL" }
+        "HEALTH_CHECK" { return Invoke-OClawSkill "Daemon_Health" }
+        "CODE_RUN" { return Invoke-OClawSkill "Code_Sandbox" "-Code `"$($Params.Code)`" -Language `"$($Params.Language)`"" }
+        "OCR" { return Invoke-OClawSkill "OCR_Extract" "-CaptureScreen" }
+        "WINDOW_LIST" { return Invoke-OClawSkill "Window_Manager" "-Action LIST" }
+        "WINDOW_FOCUS" { return Invoke-OClawSkill "Window_Manager" "-Action FOCUS -Title `"$($Params.Title)`"" }
+        "CLIPBOARD" { return Invoke-OClawSkill "Clipboard_Bridge" "-Action READ" }
+        "RAG_QUERY" { return Invoke-OClawSkill "RAG_Index" "-Action QUERY -Query `"$($Params.Query)`"" }
+        "CHAIN" { return Invoke-OClawSkill "Chain_Executor" "-Chain `"$($Params.Chain)`"" }
+        "NOTIFY" { return Invoke-OClawSkill "Notify_Center" "-Title `"$($Params.Title)`" -Message `"$($Params.Message)`"" }
+        "JOURNAL" { return Invoke-OClawSkill "Activity_Journal" "-Action TODAY" }
+        "WEBUI_STATUS" { return Invoke-OClawSkill "OpenWebUI_Bridge" "-Action STATUS" }
+        "WEBUI_INSTALL" { return Invoke-OClawSkill "OpenWebUI_Bridge" "-Action INSTALL" }
+        "WEBUI_OPEN" { return Invoke-OClawSkill "OpenWebUI_Bridge" "-Action OPEN" }
+        "GATEWAY_STATUS" { return Invoke-OClawSkill "Gateway_Client" "-Action STATUS" }
+        "GATEWAY_CONNECT" { return Invoke-OClawSkill "Gateway_Client" "-Action CONNECT -GatewayUrl `"$($Params.Url)`" -Token `"$($Params.Token)`"" }
+        "GATEWAY_SEND" { return Invoke-OClawSkill "Gateway_Client" "-Action SEND -Message `"$($Params.Message)`"" }
+        "CANVAS_CARD" { return Invoke-OClawSkill "Canvas_Renderer" "-Action CARD -Title `"$($Params.Title)`" -Content `"$($Params.Content)`" -Type `"$($Params.Type)`"" }
+        "CANVAS_TABLE" { return Invoke-OClawSkill "Canvas_Renderer" "-Action TABLE -Title `"$($Params.Title)`" -Data `"$($Params.Data)`"" }
+        "SCREEN_FULL" { return Invoke-OClawSkill "Screen_Capture_Pro" "-Action FULL" }
+        "SCREEN_WINDOW" { return Invoke-OClawSkill "Screen_Capture_Pro" "-Action WINDOW -Title `"$($Params.Title)`"" }
+        "SCREEN_RECORD" { return Invoke-OClawSkill "Screen_Capture_Pro" "-Action RECORD -Duration $($Params.Duration)" }
+        "PIPELINE_RUN" { return Invoke-OClawSkill "Pipeline_Router" "-Action RUN -Message `"$($Params.Message)`"" }
+        "NOTE_CREATE" { return Invoke-OClawSkill "Notes_System" "-Action CREATE -Title `"$($Params.Title)`" -Content `"$($Params.Content)`"" }
+        "NOTE_LIST" { return Invoke-OClawSkill "Notes_System" "-Action LIST" }
+        "NOTE_ENHANCE" { return Invoke-OClawSkill "Notes_System" "-Action ENHANCE -Title `"$($Params.Title)`"" }
+        "TERMINAL" { return Invoke-OClawSkill "Terminal_Exec" "-Action RUN -Command `"$($Params.Command)`"" }
+        "MODEL_COMPARE" { return Invoke-OClawSkill "Multi_Model" "-Action COMPARE -Prompt `"$($Params.Prompt)`"" }
+        "MODEL_BENCHMARK" { return Invoke-OClawSkill "Multi_Model" "-Action BENCHMARK" }
+        "DEEPLINK_REGISTER" { return Invoke-OClawSkill "Deep_Link" "-Action REGISTER" }
+        "ANALYTICS" { return Invoke-OClawSkill "Usage_Analytics" "-Action REPORT" }
         default {
-            Invoke-OClawSkill $MissionKey
+            $SkillPath = Join-Path "$script:LocalKnowledge\OpenClaw_Skills" "$MissionKey.ps1"
+            if (Test-Path $SkillPath) { return Invoke-OClawSkill $MissionKey }
+            return "UNKNOWN_MISSION: $MissionKey"
         }
     }
 }
 
-if ($args.Count -gt 0) { Invoke-OClawQuery $args[0] }
+function Invoke-OClawSkill([string]$SkillName, [string]$SkillArgs = "") {
+    $SkillPath = Join-Path "$script:LocalKnowledge\OpenClaw_Skills" "$SkillName.ps1"
+    if (-not (Test-Path $SkillPath)) {
+        Write-OClawLog "SKILL_NOT_FOUND" $SkillName
+        return "Skill '$SkillName' not found."
+    }
+    Write-OClawLog "SKILL_RUN" $SkillName
+    try {
+        if ($SkillArgs) {
+            return Invoke-Expression "& powershell -ExecutionPolicy Bypass -File `"$SkillPath`" $SkillArgs"
+        } else {
+            return & powershell -ExecutionPolicy Bypass -File $SkillPath
+        }
+    } catch {
+        Write-OClawLog "SKILL_ERROR" "$SkillName : $($_.Exception.Message)"
+        return "Skill error: $($_.Exception.Message)"
+    }
+}
+
+# --- 6. ENGINE INFO ---
+function Get-OClawStatus {
+    $online = Test-OClawConnection
+    $models = if ($online) { (Get-OClawModels) -join ", " } else { "N/A" }
+    $gpu = & powershell -ExecutionPolicy Bypass -File (Join-Path $script:LocalKnowledge "OpenClaw_Skills\Get_GPU_Status.ps1") 2>$null
+    return @{
+        Online = $online
+        Models = $models
+        ActiveModel = Get-OClawIdentity 1
+        GPU = $gpu
+        Version = "3.1"
+    }
+}
+
+# CLI mode
+if ($args.Count -gt 0) { Invoke-OClawQuery ($args -join " ") }

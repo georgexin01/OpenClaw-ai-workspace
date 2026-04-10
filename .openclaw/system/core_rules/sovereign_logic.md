@@ -23,7 +23,8 @@
 
 ## 🦾 4. SELF-EVOLVING INTELLIGENCE
 - **Phoenix Protocol**: On ANY failure, trigger 10-pass recursive analysis. Synthesize the "Golden Rule" and append to local core.
-- **Gemma Sovereignity**: Prioritize local 2B model for speed (Tier 1) and 7B model for mission logic (Tier 2).
+- **Hardware-Aware Auto-Scaling**: Prioritize local Gemma:2B for Fast Tier. **Gemma-4** (Architect) is mandated for Auto-Run if System RAM >= 32GB and Free RAM >= 12GB. Load monitoring (NVIDIA-SMI) must trigger auto-throttling if VRAM > 92%.
+- **Precision Mandate**: Assist responses MUST be direct answers. Omit preambles, "I understand", "Sure", and system metadata. User-facing text must be high-fidelity intelligence only.
 
 ---
 _Sovereign Singularity Initialized: 2026-04-09_
