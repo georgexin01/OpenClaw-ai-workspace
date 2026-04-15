@@ -1,0 +1,14 @@
+document_metadata:
+  identity: "VIEFAUCET_MISSION_PROFILE"
+  status: "INITIALIZING"
+  last_sync: "2026-04-14"
+
+active_mission:
+  initial_balance: 0.0
+  current_balance: 0.0
+  total_claims: 0
+  last_claim_delta: 0.0
+
+target_ads: []
+success_history: []
+failure_log: []

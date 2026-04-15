@@ -1,0 +1,16 @@
+document_metadata:
+  identity: "FAUCET_VALUE_LEDGER"
+  version: "V5.5"
+  precision: "0.000001"
+
+ledger_entries: []
+
+# FORMAT:
+# - timestamp: "2026-04-14 22:30:00"
+#   platform: "viefaucet"
+#   event: "CLAIM"
+#   initial: 100.0
+#   final: 150.0
+#   delta: 50.0
+#   expected: 50.0
+#   audit_result: "VERIFIED SUCCESS"

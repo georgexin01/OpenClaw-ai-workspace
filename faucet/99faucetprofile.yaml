@@ -1,0 +1,12 @@
+document_metadata:
+  identity: "99FAUCET_SOLANA_PROFILE"
+  status: "STANDEBY"
+  last_sync: "2026-04-14"
+
+active_mission:
+  initial_sol_balance: 0.0
+  current_sol_balance: 0.0
+  claim_frequency: "1-minute"
+
+mission_notes:
+  - "Shift 100% focus here if VieFaucet returns 429."
