@@ -137,6 +137,11 @@ Output Format: { "tasks": [ { "category": "READ|WRITE|SEARCH|CODE", "action": "s
         # Autonomous logic here
     }
 
+    "STATE_HYDRATE" {
+        Write-Output "[COGNITION] Quantum State Hydration (CSSH) Active..."
+        # Logic to summarize mission into 200-token JSON
+    }
+
     "STATUS" {
         $idx = if(Test-Path $IndexPath){(Get-Content $IndexPath | ConvertFrom-Json).Count}else{0}
         Write-Output "[COGNITION STATUS] Index Size: $idx files | Bridge: $BridgeDir"
